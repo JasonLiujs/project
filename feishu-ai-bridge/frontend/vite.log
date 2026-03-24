@@ -1,0 +1,20 @@
+
+> feishu-ai-bridge@1.0.0 dev
+> vite
+
+[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
+
+  VITE v5.4.21  ready in 361 ms
+
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: http://172.20.10.4:3000/
+  ➜  Network: http://10.200.123.123:3000/
+(node:48253) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/bytedance/project/project/feishu-ai-bridge/frontend/postcss.config.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/bytedance/project/project/feishu-ai-bridge/frontend/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+🌼   daisyUI 4.12.24
+├─ ✔︎ 3 themes added		https://daisyui.com/docs/themes
+╰─ ★ Star daisyUI on GitHub	https://github.com/saadeghi/daisyui
+

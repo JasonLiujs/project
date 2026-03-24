@@ -1,0 +1,13 @@
+.wrapper {
+  padding: 16px;
+}
+
+.field-item {
+  padding: 8px 12px;
+  background: #f7f8fa;
+  border-radius: 4px;
+}
+
+.field-value {
+  color: #4b5563;
+}

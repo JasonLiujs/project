@@ -1,10 +1,11 @@
 {
-  "appName": "feishu-ai-bridge",
-  "version": "1.0.0",
-  "entry": {
-    "tab_ai_bridge": {
-      "html": "index.html",
-      "container": "#root"
+  "siteDomain": "https://project.feishu.cn",
+  "pluginId": "MII_68C1113184964013",
+  "pluginSecret": "E44F922D93A3EC7CDA8129403895CA7C",
+  "resources": [
+    {
+      "id": "tab_web_demo",
+      "entry": "./src/features/tab/index.tsx"
     }
-  }
+  ]
 }

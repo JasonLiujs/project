@@ -1,0 +1,22 @@
+{
+  "app_name": "feishu-ai-bridge",
+  "app_description": "飞书项目 AI 协同自动化插件",
+  "version": "1.0.0",
+  "i18n": {
+    "zh_cn": {
+      "name": "AI 协同自动化",
+      "description": "飞书项目 AI 协同自动化插件"
+    }
+  },
+  "modules": [
+    {
+      "type": "tab",
+      "entry": {
+        "tab_web_demo": "index.html"
+      },
+      "name": {
+        "zh_cn": "AI 协同"
+      }
+    }
+  ]
+}

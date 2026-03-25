@@ -70,8 +70,11 @@ class Orchestrator:
         return "office-hours"
 
     def detect_role_for_node_from_detail(self, node_detail: Dict) -> str:
-        data = node_detail.get("data", {})
-        for node in data.get("list", []):
+        current = self.mcp_client.get_current_node(node_detail)
+        if current:
+            name = current.get("basic", {}).get("name", "")
+            return self.detect_role_for_node(name)
+        for node in node_detail.get("list", []):
             name = node.get("basic", {}).get("name", "")
             if name:
                 return self.detect_role_for_node(name)
@@ -93,18 +96,43 @@ class Orchestrator:
 
     def transition_node(self, work_item_id: str) -> Dict[str, Any]:
         detail = self.mcp_client.get_node_detail(work_item_id)
-        data = detail.get("data", {})
-        node_list = data.get("list", [])
-        if not node_list:
-            return {"success": False, "reason": "no node info"}
+        current_node = self.mcp_client.get_current_node(detail)
+        if not current_node:
+            return {"success": False, "reason": "no doing node found"}
 
-        states = self.mcp_client.get_transitable_states(work_item_id)
-        if not states:
-            return {"success": False, "reason": "no transitable state"}
+        node_key = current_node.get("basic", {}).get("node_key")
+        node_name = current_node.get("basic", {}).get("name", "")
+        if not node_key:
+            return {"success": False, "reason": "no node key in current node"}
+
+        required = self.mcp_client.get_transition_required(work_item_id, node_key)
+        if required:
+            form_items = {fi.get("field_key"): fi for fi in current_node.get("form_items", [])}
+            fields_to_fill = []
+            for req in required:
+                field_key = req.get("key") or req.get("field_key")
+                field_type = req.get("field_type_key", "")
+                if field_key and field_key in form_items:
+                    fi = form_items[field_key]
+                    field_type = field_type or fi.get("field_type", "")
+                    if field_type == "bool":
+                        fields_to_fill.append({"field_key": field_key, "field_value": "false"})
+                    elif field_type in ("text", "multi-text", "multi-pure-text"):
+                        fields_to_fill.append({"field_key": field_key, "field_value": "已填写"})
+            if fields_to_fill:
+                try:
+                    self.mcp_client.update_field(work_item_id, fields_to_fill)
+                    logger.info("Filled %d required fields for node %s", len(fields_to_fill), node_key)
+                except Exception as e:
+                    logger.warning("Failed to fill required fields: %s", e)
+                    return {"success": False, "error": f"required fields not filled: {e}"}
 
         try:
-            self.mcp_client.transition_node(work_item_id, states[0])
-            return {"success": True, "target_state": states[0]}
+            result = self.mcp_client.transition_node(work_item_id, node_key=node_key, action="confirm")
+            result_text = str(result.get("data", ""))
+            if "success" in result_text.lower() or "mcp_result" in result_text.lower() or result.get("isError") is not True:
+                return {"success": True, "node_key": node_key, "node_name": node_name}
+            return {"success": False, "error": result_text}
         except Exception as e:
             logger.error("Failed to transition node %s: %s", work_item_id, e)
             return {"success": False, "error": str(e)}

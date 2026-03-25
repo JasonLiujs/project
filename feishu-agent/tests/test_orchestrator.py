@@ -48,21 +48,22 @@ class TestOrchestratorNodeTransition:
         mock_client = MagicMock()
         mock_mcp_cls.return_value = mock_client
         mock_client.get_node_detail.return_value = {
-            "data": {
-                "list": [{
-                    "basic": {"node_key": "started", "status": "doing"}
-                }]
-            }
+            "list": [{
+                "basic": {"node_key": "started", "name": "项目立项", "status": "doing"}
+            }]
         }
-        mock_client.get_transitable_states.return_value = ["state_1"]
-        mock_client.get_transition_required.return_value = []
-        mock_client.transition_node.return_value = {"data": {"ok": True}}
+        mock_client.get_current_node.return_value = {
+            "basic": {"node_key": "started", "name": "项目立项", "status": "doing"}
+        }
+        mock_client.transition_node.return_value = {"data": "success"}
 
         orch = Orchestrator()
         orch.mcp_client = mock_client
 
         result = orch.transition_node("work-item-123")
         assert result["success"] is True
+        assert result.get("node_key") == "started"
+        mock_client.transition_node.assert_called_once_with("work-item-123", node_key="started", action="confirm")
 
     @patch("feishu_agent.orchestrator.MCPClient")
     def test_transition_node_no_states(self, mock_mcp_cls):
@@ -71,20 +72,20 @@ class TestOrchestratorNodeTransition:
         mock_client = MagicMock()
         mock_mcp_cls.return_value = mock_client
         mock_client.get_node_detail.return_value = {
-            "data": {
-                "list": [{
-                    "basic": {"node_key": "started", "status": "doing"}
-                }]
-            }
+            "list": [{
+                "basic": {"node_key": "started", "status": "doing"}
+            }]
         }
-        mock_client.get_transitable_states.return_value = []
+        mock_client.get_current_node.return_value = {
+            "basic": {"node_key": "started", "status": "doing"}
+        }
+        mock_client.transition_node.return_value = {"data": "success"}
 
         orch = Orchestrator()
         orch.mcp_client = mock_client
 
         result = orch.transition_node("work-item-123")
-        assert result["success"] is False
-        assert "no transitable state" in result.get("reason", "")
+        assert result["success"] is True
 
 
 class TestOrchestratorGstackDispatch:
@@ -180,9 +181,8 @@ class TestNodeDetection:
         orch = Orchestrator()
         assert orch.detect_role_for_node("未知节点") == "office-hours"
 
-    @patch("feishu_agent.orchestrator.MCPClient")
-    def test_detect_from_detail(self, mock_mcp_cls):
+    def test_detect_from_detail(self):
         from feishu_agent.orchestrator import Orchestrator
         orch = Orchestrator()
-        detail = {"data": {"list": [{"basic": {"name": "需求拆解"}}]}}
+        detail = {"list": [{"basic": {"name": "需求拆解", "status": "doing"}}]}
         assert orch.detect_role_for_node_from_detail(detail) == "browse"

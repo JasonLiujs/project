@@ -3,10 +3,13 @@ import time
 import json
 import random
 import logging
+import socket
 import requests
+import urllib3
 from typing import Any, Optional, List, Dict, Generator
 from dataclasses import dataclass
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logger = logging.getLogger(__name__)
 
 
@@ -44,14 +47,41 @@ class MCPClient:
         self.config = config or MCPConfig()
         self._session = requests.Session()
         self._session.headers.update({"Content-Type": "application/json"})
+        self._session.verify = False
+        self._resolved_ip: Optional[str] = None
+
+    def _resolve_host(self) -> Optional[str]:
+        if self._resolved_ip:
+            return self._resolved_ip
+        try:
+            hostname = self.config.url.replace("https://", "").replace("http://", "").split("/")[0]
+            addrs = socket.getaddrinfo(hostname, 443)
+            ip = str(addrs[0][4][0])
+            self._resolved_ip = ip
+            return ip
+        except Exception as e:
+            logger.warning(f"DNS resolution failed: {e}")
+            return None
 
     def _build_url(self) -> str:
-        return f"{self.config.url}?mcpKey={self.config.mcp_key}&userKey={self.config.user_key}"
+        base = self.config.url
+        resolved = self._resolve_host()
+        if resolved:
+            original_host = self.config.url.replace("https://", "").replace("http://", "").split("/")[0]
+            base = base.replace(f"//{original_host}", f"//{resolved}")
+        return f"{base}?mcpKey={self.config.mcp_key}&userKey={self.config.user_key}"
+
+    def _get_headers(self) -> Dict[str, str]:
+        headers = {}
+        if self._resolved_ip:
+            original_host = self.config.url.replace("https://", "").replace("http://", "").split("/")[0]
+            headers["Host"] = original_host
+        return headers
 
     def _call_raw(self, method: str, params: dict) -> dict:
         url = self._build_url()
         payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
-        response = self._session.post(url, json=payload, timeout=self.config.timeout)
+        response = self._session.post(url, json=payload, timeout=self.config.timeout, headers=self._get_headers())
         response.raise_for_status()
         return response.json()
 
@@ -227,12 +257,14 @@ class MCPClient:
         work_item_type: Optional[str] = None,
         project_key: Optional[str] = None,
     ) -> Dict:
-        return self._retry_call("update_field", {
+        args: Dict[str, Any] = {
             "project_key": project_key or self.config.project_key,
             "work_item_id": work_item_id,
-            "work_item_type": work_item_type,
             "fields": fields,
-        })
+        }
+        if work_item_type:
+            args["work_item_type"] = work_item_type
+        return self._retry_call("update_field", args)
 
     def get_transitable_states(
         self,
@@ -259,7 +291,8 @@ class MCPClient:
             "work_item_id": work_item_id,
             "state_key": state_key,
         })
-        return result.get("data", {}).get("required_fields", [])
+        data = result.get("data", {})
+        return data.get("form_items", data.get("required_fields", []))
 
     def add_comment(
         self,
@@ -279,24 +312,42 @@ class MCPClient:
         mode: str = "_all",
         project_key: Optional[str] = None,
     ) -> Dict:
-        return self._retry_call("get_node_detail", {
+        result = self._retry_call("get_node_detail", {
             "project_key": project_key or self.config.project_key,
             "work_item_id": work_item_id,
         })
+        data = result.get("data", {})
+        if isinstance(data, dict) and "list" in data:
+            return data
+        return result
+
+    def get_current_node(self, node_detail: Dict) -> Optional[Dict]:
+        for node in node_detail.get("list", []):
+            if node.get("basic", {}).get("status") == "doing":
+                return node
+        return None
+
+    def confirm_current_node(self, work_item_id: str, node_key: str) -> Dict:
+        return self.transition_node(work_item_id, node_key=node_key, action="confirm")
 
     def transition_node(
         self,
         work_item_id: str,
-        target_state: str,
+        node_key: Optional[str] = None,
+        action: str = "confirm",
         work_item_type: Optional[str] = None,
         project_key: Optional[str] = None,
     ) -> Dict:
-        return self._retry_call("transition_node", {
+        args: Dict[str, Any] = {
             "project_key": project_key or self.config.project_key,
             "work_item_id": work_item_id,
-            "work_item_type": work_item_type,
-            "target_state": target_state,
-        })
+            "action": action,
+        }
+        if node_key:
+            args["node_id"] = node_key
+        if work_item_type:
+            args["work_item_type"] = work_item_type
+        return self._retry_call("transition_node", args)
 
     def list_workitem_field_config(
         self,

@@ -32,8 +32,10 @@ class TestMCPClientInit:
         assert client.config.mcp_key == "test-mcp-key"
         assert client.config.timeout == 5
 
+    @patch("feishu_client.mcp.MCPClient._resolve_host")
     @patch("feishu_client.mcp.requests.Session")
-    def test_build_url(self, mock_session_cls, mock_config):
+    def test_build_url(self, mock_session_cls, mock_resolve, mock_config):
+        mock_resolve.return_value = None
         client = MCPClient(mock_config)
         url = client._build_url()
         assert "mcpKey=test-mcp-key" in url
@@ -209,6 +211,40 @@ class TestOtherTools:
     def test_transition_node(self, mock_retry, mock_config):
         mock_retry.return_value = {"data": {"ok": True}}
         client = MCPClient(mock_config)
-        client.transition_node("work-item-123", "state_2")
+        client.transition_node("work-item-123", node_key="started", action="confirm")
         call_args = mock_retry.call_args[0]
-        assert call_args[1]["target_state"] == "state_2"
+        assert call_args[1]["node_id"] == "started"
+        assert call_args[1]["action"] == "confirm"
+
+    def test_get_current_node(self, mock_config):
+        client = MCPClient(mock_config)
+        detail = {
+            "list": [
+                {"basic": {"node_key": "started", "status": "finished"}},
+                {"basic": {"node_key": "state_0", "status": "doing"}},
+                {"basic": {"node_key": "state_1", "status": "not_started"}},
+            ]
+        }
+        result = client.get_current_node(detail)
+        assert result["basic"]["node_key"] == "state_0"
+
+    def test_get_current_node_no_doing(self, mock_config):
+        client = MCPClient(mock_config)
+        detail = {"list": [{"basic": {"node_key": "started", "status": "finished"}}]}
+        result = client.get_current_node(detail)
+        assert result is None
+
+    @patch("feishu_client.mcp.MCPClient._retry_call")
+    def test_get_transition_required_form_items(self, mock_retry, mock_config):
+        mock_retry.return_value = {
+            "data": {
+                "form_items": [
+                    {"key": "field_1", "field_type_key": "bool"},
+                    {"key": "field_2", "field_type_key": "text"},
+                ]
+            }
+        }
+        client = MCPClient(mock_config)
+        result = client.get_transition_required("work-item-123", "state_0")
+        assert len(result) == 2
+        assert result[0]["key"] == "field_1"

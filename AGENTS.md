@@ -12,9 +12,10 @@
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR | 9 issues, 7 resolved, 2 user-declined |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR | 5 decisions made |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
 
-**VERDICT:** 1 review run — Eng Review passed with 9 issues raised, 7 accepted, 2 user-declined.
+**VERDICT:** 2 review runs — Eng Review (9 issues) + Design Review (5 decisions) — CLEAR. Development complete through Phase 3.
 
 ---
 
@@ -129,16 +130,21 @@
 ```
 feishu-agent/                   # 根目录
 ├── feishu_client/             # MCP + 开放平台 API 客户端
-│   ├── mcp.py                # MCP 封装（26工具，含分页遍历+重试）
+│   ├── mcp.py                # MCP 封装（32工具，含分页遍历+重试）
 │   └── feishu_api.py         # 飞书开放平台 API（token管理、用户搜索、消息通知）
-├── orchestrator.py           # 编排器：任务发现 + 节点流转 + gstack分发 + 报告上报
-├── state.py                  # JSON 文件持久化（替代 SQLite）
-├── feishu_auto.py            # OpenCode 命令入口（/feishu-auto）
-├── config.py                 # 环境变量加载 + .env.example
-└── main.py                   # Webhook 服务入口（ngrok + FastAPI）
+├── feishu_agent/             # Agent 核心
+│   ├── orchestrator.py        # 编排器：任务发现 + 节点流转 + gstack分发 + 报告上报
+│   ├── state.py              # JSON 文件持久化（StateManager）
+│   ├── feishu_auto.py        # CLI 命令入口（list/claim/run/flow/report/auto）
+│   ├── config.py             # 环境变量加载 + 单例 get_config()
+│   └── main.py               # Webhook 服务入口（ngrok 自动管理）
+├── tests/                    # 单元测试（68 个，pytest）
+└── .env.example             # 配置模板
 ```
 
 > Prompts 内联为 orchestrator.py 中的常量。ngrok/local_server/comment_reporter 等小工具各自内联到使用者模块。
+
+**已完成**: ✅ 第一阶段 ~ ✅ 第二阶段 ~ ✅ 第三阶段（2026-03-26）
 
 ---
 

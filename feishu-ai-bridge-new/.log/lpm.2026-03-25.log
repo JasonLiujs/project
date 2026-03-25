@@ -1,0 +1,14 @@
+[17:22:07][INFO][29174] 
+start check @lark-project/cli latest version...
+[17:22:08][INFO][29174] 
+The Lark Project CLI version is the latest
+[17:22:08][INFO][29174] 
+Current plugin will use v2 framework.
+[17:22:08][INFO][29174] 
+Start init project at  /Users/bytedance/project/project/feishu-ai-bridge-new/feishu-ai-bridge
+[17:22:09][INFO][29174] 
+Download from the path of project/react-initialized
+[17:22:09][INFO][29174] 
+Installing packages. This might take a couple of minutes.
+[17:22:13][SUCCESS][29174] 
+🍻🍻🍻 Init successfully! The project is under /Users/bytedance/project/project/feishu-ai-bridge-new/feishu-ai-bridge . All resourceIds that don't match will follow the default path. Enter the following commands at the terminal to begin development.

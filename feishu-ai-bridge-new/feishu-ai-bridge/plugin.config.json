@@ -1,0 +1,12 @@
+
+{
+    "siteDomain": "https://project.feishu.cn",
+    "pluginId": "MII_68C1113184964013",
+    "pluginSecret": "5277716e86bc87483bcc1e77284b11ea80da369609627ae3448136bc5e332b06f3b6af190d57d5327807b0007ab1ffe4",
+    "resources": [
+        {
+            "id": "dashboard_web_cd7mgb",
+            "entry": "./src/features/dashboard_web_cd7mgb/index.tsx"
+        }
+    ]
+}

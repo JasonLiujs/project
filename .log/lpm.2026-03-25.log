@@ -1,0 +1,46 @@
+[01:26:45][INFO][76506] 
+start check @lark-project/cli latest version...
+[01:26:48][INFO][76506] 
+The Lark Project CLI version is the latest
+[01:26:48][INFO][76506] 
+Current plugin will use v2 framework.
+[01:26:48][INFO][76506] 
+Start init project at  /Users/bytedance/project/project/feishu-ai-bridge
+[01:26:51][WARN][76506] 
+Can't get the plugin' framework version, will be treated as version 1.0.
+[01:26:51][INFO][76506] 
+Current plugin will use v1 framework.
+[01:58:10][INFO][60258] 
+start check @lark-project/cli latest version...
+[01:58:14][INFO][60258] 
+The Lark Project CLI version is the latest
+[01:58:14][INFO][60258] 
+Current plugin will use v2 framework.
+[01:58:14][INFO][60258] 
+Start init project at  /Users/bytedance/project/project/feishu-ai-bridge-v2
+[01:58:16][INFO][60258] 
+Download from the path of project/react-initialized
+[01:58:17][INFO][60258] 
+Installing packages. This might take a couple of minutes.
+[01:58:24][SUCCESS][60258] 
+🍻🍻🍻 Init successfully! The project is under /Users/bytedance/project/project/feishu-ai-bridge-v2 . All resourceIds that don't match will follow the default path. Enter the following commands at the terminal to begin development.
+[16:39:05][ERROR][16096] 
+Please provide an option, e.g. npm
+[17:08:26][INFO][26214] 
+start check @lark-project/cli latest version...
+[17:08:28][INFO][26214] 
+The Lark Project CLI version is the latest
+[17:13:33][INFO][26807] 
+start check @lark-project/cli latest version...
+[17:13:34][INFO][26807] 
+The Lark Project CLI version is the latest
+[17:13:34][INFO][26807] 
+Current plugin will use v2 framework.
+[17:13:34][INFO][26807] 
+Start init project at  /Users/bytedance/project/project/test
+[17:13:35][INFO][26807] 
+Download from the path of project/react-initialized
+[17:13:35][INFO][26807] 
+Installing packages. This might take a couple of minutes.
+[17:13:39][SUCCESS][26807] 
+🍻🍻🍻 Init successfully! The project is under /Users/bytedance/project/project/test . All resourceIds that don't match will follow the default path. Enter the following commands at the terminal to begin development.

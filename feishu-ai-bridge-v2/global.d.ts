@@ -3,6 +3,8 @@ import type { SDKClient } from '@lark-project/js-sdk';
 declare global {
   interface Window {
     JSSDK: SDKClient;
+    React: typeof import('react');
+    ReactDOM: typeof import('react-dom');
   }
 
   declare module '*.png';
@@ -15,6 +17,7 @@ declare global {
   declare module '*.woff2';
   declare module '*.less';
   declare module '*.mp4';
+  declare module '*.css';
   declare module '*.svg' {
     const content: any;
     export default content;

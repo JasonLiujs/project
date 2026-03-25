@@ -71,8 +71,12 @@ class MCPClient:
 
         if is_error and content_list:
             text = content_list[0].get("text", "")
-            code_match = text.split(",")[0] if text else "-1"
-            code = int(code_match.split("=")[1]) if "=" in code_match else -1
+            import re
+            code = -1
+            for match in re.finditer(r'code=(\d+)', text):
+                code = int(match.group(1))
+            if code == 429:
+                raise RateLimitError(code, text)
             raise MCPError(code, text)
 
         if content_list:
@@ -81,7 +85,7 @@ class MCPClient:
                 return {"data": json.loads(text)}
             except (json.JSONDecodeError, TypeError):
                 return {"data": text}
-        return rpc_result
+        return {"data": {}}
 
     def _retry_call(self, tool_name: str, arguments: dict) -> dict:
         for attempt in range(self.config.max_retries):

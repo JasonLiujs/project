@@ -109,7 +109,9 @@ class FeishuAPIClient:
                 "user_id_type": user_id_type,
             }
         )
-        return data.get("users", [])
+        if isinstance(data, list):
+            return data
+        return data.get("users", []) if isinstance(data, dict) else []
 
     def send_message(
         self,

@@ -1,15 +1,22 @@
-import { hot } from 'react-hot-loader/root';
-import React from 'react';
-import { Typography } from '@douyinfe/semi-ui';
-import './index.less';
+import React, { lazy, Suspense } from 'react';
+import { createRoot } from 'react-dom/client';
 
-const TabWebDemo: React.FC = () => {
-  return (
-    <div className="tab-container">
-      <Typography.Title heading={3}>AI 协同自动化</Typography.Title>
-      <div>hello world - Tab Demo</div>
-    </div>
+const App = lazy(() => import('./App'));
+
+export default async function main() {
+  await window.JSSDK.shared.setSharedModules({
+    React,
+    ReactDOM: window.ReactDOM,
+  });
+
+  const container = document.createElement('div');
+  container.id = 'app';
+  document.body.appendChild(container);
+  const root = createRoot(container);
+
+  root.render(
+    <Suspense fallback={<div>loading...</div>}>
+      <App />
+    </Suspense>
   );
-};
-
-export default hot(TabWebDemo);
+}

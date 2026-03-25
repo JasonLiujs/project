@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useWorkItemContext } from '../../hooks/useContext';
 import { mcpClient, AIInsight } from '../../api/mcp';
+import { kimiService } from '../../services/kimi';
 import { STATUS_LABELS } from '../../constants';
 import './AITab.css';
 
@@ -9,6 +10,7 @@ interface WorkItemBrief {
   title: string;
   status: string;
   status_name?: string;
+  description?: string;
   [key: string]: unknown;
 }
 
@@ -18,63 +20,6 @@ interface Comment {
   create_time: number;
   user_key: string;
 }
-
-const generateSummary = (item: WorkItemBrief, comments: Comment[]): AIInsight => {
-  const statusLabel = STATUS_LABELS[item.status] || item.status;
-  const commentCount = comments.length;
-  const latestComment = commentCount > 0 ? comments[commentCount - 1].content.slice(0, 100) : null;
-  
-  return {
-    type: 'summary',
-    title: '工作项摘要',
-    content: `当前状态: ${statusLabel}。共 ${commentCount} 条评论。${latestComment ? `最新评论: "${latestComment}..."` : '暂无评论。'}`,
-    confidence: 0.95,
-  };
-};
-
-const generateSuggestions = (item: WorkItemBrief, comments: Comment[]): AIInsight[] => {
-  const suggestions: AIInsight[] = [];
-  
-  if (comments.length === 0) {
-    suggestions.push({
-      type: 'suggestion',
-      title: '建议添加评论',
-      content: '该工作项暂无评论，建议添加描述或更新进展，以便团队成员了解最新状态。',
-      confidence: 0.9,
-    });
-  }
-
-  if (item.status === 'to_be_started') {
-    suggestions.push({
-      type: 'suggestion',
-      title: '建议启动工作项',
-      content: '该工作项状态为"未开始"，建议确认是否已开始处理，或更新状态为"进行中"。',
-      confidence: 0.85,
-    });
-  }
-
-  return suggestions;
-};
-
-const detectRisks = (item: WorkItemBrief, comments: Comment[]): AIInsight[] => {
-  const risks: AIInsight[] = [];
-  
-  const now = Date.now();
-  const staleThreshold = 7 * 24 * 60 * 60 * 1000;
-  if (comments.length > 0) {
-    const lastCommentTime = comments[comments.length - 1].create_time;
-    if (now - lastCommentTime > staleThreshold) {
-      risks.push({
-        type: 'risk',
-        title: '长时间未更新',
-        content: `该工作项已超过 7 天没有新评论或更新，可能存在进度延误风险。`,
-        confidence: 0.8,
-      });
-    }
-  }
-
-  return risks;
-};
 
 export default function AITab() {
   const { workItemId, workItemType, loading: ctxLoading } = useWorkItemContext();
@@ -86,6 +31,7 @@ export default function AITab() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [llmError, setLlmError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!workItemId || !workItemType || ctxLoading) return;
@@ -106,10 +52,7 @@ export default function AITab() {
         setComments(commentList);
 
         if (item) {
-          const summary = generateSummary(item, commentList);
-          const suggestions = generateSuggestions(item, commentList);
-          const risks = detectRisks(item, commentList);
-          setInsights([summary, ...suggestions, ...risks]);
+          await generateInsights(item, commentList);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -121,23 +64,106 @@ export default function AITab() {
     fetchData();
   }, [workItemId, workItemType, ctxLoading]);
 
+  const generateInsights = async (item: WorkItemBrief, commentList: Comment[]) => {
+    const newInsights: AIInsight[] = [];
+    setLlmError(null);
+
+    const statusLabel = STATUS_LABELS[item.status] || item.status;
+    newInsights.push({
+      type: 'summary',
+      title: '工作项摘要',
+      content: `状态: ${statusLabel}，共 ${commentList.length} 条评论。`,
+      confidence: 0.95,
+    });
+
+    if (commentList.length === 0) {
+      newInsights.push({
+        type: 'suggestion',
+        title: '建议添加评论',
+        content: '该工作项暂无评论，建议添加描述或更新进展，以便团队成员了解最新状态。',
+        confidence: 0.9,
+      });
+    }
+
+    const result = await kimiService.generateWorkItemSummary(
+      { title: item.title, status: item.status, statusName: item.status_name },
+      commentList.length
+    );
+
+    if (result.error) {
+      setLlmError('AI 分析暂时不可用: ' + result.error);
+    } else if (result.content) {
+      newInsights.push({
+        type: 'summary',
+        title: 'AI 智能分析',
+        content: result.content,
+        confidence: 0.85,
+      });
+    }
+
+    const lastCommentTime = commentList.length > 0 ? commentList[commentList.length - 1].create_time : undefined;
+    const riskResult = await kimiService.detectRisks(
+      { title: item.title, status: item.status, updateTime: lastCommentTime },
+      commentList.length,
+      lastCommentTime
+    );
+
+    if (riskResult.content && !riskResult.error) {
+      try {
+        const parsed = JSON.parse(riskResult.content);
+        if (parsed.risks && Array.isArray(parsed.risks)) {
+          parsed.risks.forEach((risk: { type: string; level: string; description: string; suggestion: string }) => {
+            newInsights.push({
+              type: 'risk',
+              title: `风险检测: ${risk.type}`,
+              content: `${risk.description} 建议: ${risk.suggestion}`,
+              confidence: risk.level === 'high' ? 0.9 : risk.level === 'medium' ? 0.7 : 0.5,
+            });
+          });
+        }
+      } catch {
+        if (commentList.length > 0) {
+          const now = Date.now();
+          const lastCommentTimeMs = commentList[commentList.length - 1].create_time;
+          if (now - lastCommentTimeMs > 7 * 24 * 60 * 60 * 1000) {
+            newInsights.push({
+              type: 'risk',
+              title: '长时间未更新',
+              content: '该工作项已超过 7 天没有新评论或更新，可能存在进度延误风险。',
+              confidence: 0.8,
+            });
+          }
+        }
+      }
+    }
+
+    setInsights(newInsights);
+  };
+
   const handleGenerateComment = useCallback(async () => {
     if (!aiPrompt.trim() || !workItemId) return;
     setGenerating(true);
     setAiResponse(null);
+    setLlmError(null);
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      const response = generateAIReply(aiPrompt, workItem);
-      setAiResponse(response);
-    } catch (err) {
+      const commentTexts = comments.map(c => c.content);
+      const result = await kimiService.generateCommentReply(aiPrompt, workItem || { title: '', status: '' }, commentTexts);
+
+      if (result.error) {
+        setAiResponse('生成失败: ' + result.error);
+      } else {
+        setAiResponse(result.content);
+      }
+    } catch {
       setAiResponse('生成失败，请重试。');
     } finally {
       setGenerating(false);
     }
-  }, [aiPrompt, workItemId, workItem]);
+  }, [aiPrompt, workItemId, workItem, comments]);
 
   const handlePostComment = useCallback(async () => {
-    if (!aiResponse || !workItemId) return;
+    if (!aiResponse || !workItemId || aiResponse.startsWith('生成失败')) return;
     try {
       await mcpClient.addComment(workItemId, aiResponse);
       setComments(prev => [...prev, {
@@ -202,9 +228,15 @@ export default function AITab() {
   return (
     <div className="ai-tab">
       <div className="ai-tab-header">
-        <h2>🤖 AI 协同分析</h2>
+        <h2>🤖 AI 协同分析 <span className="powered-by">Powered by Kimi</span></h2>
         <span className="work-item-name">{workItem.title}</span>
       </div>
+
+      {llmError && (
+        <div className="llm-error-banner">
+          <span>⚠️ {llmError}</span>
+        </div>
+      )}
 
       <div className="insights-section">
         <h3>智能洞察</h3>
@@ -214,7 +246,7 @@ export default function AITab() {
               <div className="insight-header">
                 <span className="insight-icon">{getInsightIcon(insight.type)}</span>
                 <span className="insight-title">{insight.title}</span>
-                <span className="insight-confidence">{Math.round(insight.confidence * 100)}% 置信</span>
+                <span className="insight-confidence">{Math.round(insight.confidence * 100)}%</span>
               </div>
               <p className="insight-content">{insight.content}</p>
             </div>
@@ -223,7 +255,7 @@ export default function AITab() {
       </div>
 
       <div className="ai-compose-section">
-        <h3>✍️ AI 评论助手</h3>
+        <h3>✍️ Kimi 评论助手</h3>
         <div className="compose-box">
           <textarea
             className="ai-prompt-input"
@@ -237,16 +269,16 @@ export default function AITab() {
             onClick={handleGenerateComment}
             disabled={!aiPrompt.trim() || generating}
           >
-            {generating ? '生成中...' : '生成评论'}
+            {generating ? '生成中... 🚀' : '🚀 Kimi 生成'}
           </button>
         </div>
 
         {aiResponse && (
           <div className="ai-response">
             <div className="response-header">
-              <span>✨ AI 生成内容</span>
+              <span>✨ Kimi 生成内容</span>
             </div>
-            <p className="response-content">{aiResponse}</p>
+            <div className="response-content">{aiResponse}</div>
             <div className="response-actions">
               <button className="btn-post" onClick={handlePostComment}>
                 发布评论
@@ -266,12 +298,14 @@ export default function AITab() {
         ) : (
           <div className="comments-list">
             {comments.map(comment => (
-              <div key={comment.comment_id} className="comment-item">
+              <div key={comment.comment_id} className={`comment-item ${comment.user_key === 'ai' ? 'comment-ai' : ''}`}>
                 <div className="comment-meta">
-                  <span className="comment-user">{comment.user_key === 'ai' ? '🤖 AI' : comment.user_key}</span>
+                  <span className="comment-user">
+                    {comment.user_key === 'ai' ? '🤖 Kimi' : comment.user_key}
+                  </span>
                   <span className="comment-time">{new Date(comment.create_time).toLocaleString('zh-CN')}</span>
                 </div>
-                <p className="comment-text">{comment.content}</p>
+                <div className="comment-text">{comment.content}</div>
               </div>
             ))}
           </div>
@@ -279,18 +313,4 @@ export default function AITab() {
       </div>
     </div>
   );
-}
-
-function generateAIReply(prompt: string, workItem: WorkItemBrief | null): string {
-  const statusLabel = STATUS_LABELS[workItem?.status || ''] || '进行中';
-  
-  if (prompt.includes('总结') || prompt.includes('进度')) {
-    return `## 📊 工作进展更新\n\n当前状态：**${statusLabel}**\n\n该工作项目前进展顺利，团队正在按计划推进。\n\n---\n*由 AI 自动生成*`;
-  }
-  
-  if (prompt.includes('提醒') || prompt.includes('截止')) {
-    return `## ⏰ 提醒通知\n\n> 请关注此工作项的处理进度，确保按期完成。如有阻塞问题，请及时在评论中说明。\n\n---\n*由 AI 自动生成*`;
-  }
-
-  return `## 💭 补充说明\n\n感谢更新！该工作项（${workItem?.title || '当前工作项'}）状态为 **${statusLabel}**，如有新进展请及时同步。\n\n---\n*由 AI 自动生成*`;
 }

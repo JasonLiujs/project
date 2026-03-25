@@ -24,3 +24,21 @@ export interface TestConnectionResult {
 }
 
 export type RepoType = 'github' | 'gitlab' | 'local';
+
+export interface AIRule {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  trigger: 'on_create' | 'on_update' | 'on_comment' | 'on_schedule';
+  actions: string[];
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+  avatar: string;
+  status: 'online' | 'offline' | 'busy';
+}

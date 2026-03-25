@@ -1,69 +1,76 @@
-import { useState, useEffect } from 'react';
-import RepoConfig from './components/RepoConfig';
-import { RepoConfig as RepoConfigType } from './types';
+import React, { useState, useEffect } from 'react';
+import DashboardPage from './pages/Dashboard';
+import RepoPage from './pages/RepoPage';
+import LLMConfigPage from './pages/LLMConfigPage';
+import RulesPage from './pages/RulesPage';
+import TeamPage from './pages/TeamPage';
+import './styles/admin.css';
 
-function App() {
-  const [config, setConfig] = useState<RepoConfigType | null>(null);
-  const [loading, setLoading] = useState(true);
+type Page = 'dashboard' | 'repo' | 'llm' | 'rules' | 'team';
 
-  useEffect(() => {
-    loadConfig();
-  }, []);
+const navItems: { key: Page; label: string; icon: string }[] = [
+  { key: 'dashboard', label: '总览', icon: '📊' },
+  { key: 'repo', label: '仓库配置', icon: '📦' },
+  { key: 'llm', label: 'AI / LLM', icon: '🤖' },
+  { key: 'rules', label: 'AI 规则', icon: '⚡' },
+  { key: 'team', label: '团队管理', icon: '👥' },
+];
 
-  const loadConfig = async () => {
-    setLoading(true);
-    try {
-      const saved = localStorage.getItem('feishu-ai-bridge-repo-config');
-      if (saved) {
-        setConfig(JSON.parse(saved));
-      }
-    } catch (error) {
-      console.error('加载配置失败:', error);
-    } finally {
-      setLoading(false);
+export default function AdminApp() {
+  const [page, setPage] = useState<Page>('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  const renderPage = () => {
+    switch (page) {
+      case 'dashboard': return <DashboardPage />;
+      case 'repo': return <RepoPage />;
+      case 'llm': return <LLMConfigPage />;
+      case 'rules': return <RulesPage />;
+      case 'team': return <TeamPage />;
+      default: return <DashboardPage />;
     }
   };
-
-  const handleSaveConfig = async (newConfig: RepoConfigType) => {
-    try {
-      const configWithTimestamp = {
-        ...newConfig,
-        id: newConfig.id || crypto.randomUUID(),
-        updatedAt: new Date().toISOString(),
-      };
-      localStorage.setItem('feishu-ai-bridge-repo-config', JSON.stringify(configWithTimestamp));
-      setConfig(configWithTimestamp);
-    } catch (error) {
-      console.error('保存配置失败:', error);
-      throw error;
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <span className="loading loading-spinner loading-lg text-primary"></span>
-      </div>
-    );
-  }
 
   return (
-    <div className="container mx-auto px-4">
-      <div className="navbar bg-base-100 shadow-sm rounded-lg mb-6">
-        <div className="flex-1">
-          <a className="btn btn-ghost text-xl">🚀 AI 协同自动化</a>
+    <div className="admin-layout">
+      <aside className={`admin-sidebar ${sidebarOpen ? 'open' : 'collapsed'}`}>
+        <div className="sidebar-header">
+          <span className="logo-icon">🚀</span>
+          {sidebarOpen && <span className="logo-text">AI Bridge</span>}
+          <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            {sidebarOpen ? '◀' : '▶'}
+          </button>
         </div>
-        <div className="flex-none">
-          <div className="text-sm opacity-70">飞书项目集成</div>
+        <nav className="sidebar-nav">
+          {navItems.map(item => (
+            <button
+              key={item.key}
+              className={`nav-item ${page === item.key ? 'active' : ''}`}
+              onClick={() => setPage(item.key)}
+              title={item.label}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              {sidebarOpen && <span className="nav-label">{item.label}</span>}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <div className="version-info">
+            {sidebarOpen && (
+              <>
+                <span>v2.0.0</span>
+                <span className="sdk-tag">SDK v2.0.5</span>
+              </>
+            )}
+          </div>
         </div>
-      </div>
-      
-      <RepoConfig
-        config={config}
-        onSave={handleSaveConfig}
-      />
+      </aside>
+
+      <main className="admin-main">
+        <div className="admin-content">
+          {renderPage()}
+        </div>
+      </main>
     </div>
   );
 }
-
-export default App;

@@ -1,23 +1,23 @@
-import React, { lazy, Suspense } from 'react';
-import ReactDOM from 'react-dom';
+import React, { lazy } from 'react';
 import { createRoot } from 'react-dom/client';
+import { SDKProvider } from '../../hooks/useContext';
 
 const App = lazy(() => import('./App'));
 
 export default async function main() {
   await window.JSSDK.shared.setSharedModules({
     React,
-    ReactDOM,
+    ReactDOM: window.ReactDOM,
   });
 
   const container = document.createElement('div');
-  container.id = 'app';
+  container.id = 'links-root';
   document.body.appendChild(container);
   const root = createRoot(container);
 
   root.render(
-    <Suspense fallback={<div>loading...</div>}>
+    <SDKProvider>
       <App />
-    </Suspense>
+    </SDKProvider>
   );
 }

@@ -151,3 +151,38 @@ class TestOrchestratorReport:
         comment = mock_client.add_comment.call_args[1].get("comment_content") or mock_client.add_comment.call_args[0][1]
         assert "Agent 执行报告" in comment
         assert "✅" in comment
+
+
+class TestNodeDetection:
+    @patch("feishu_agent.orchestrator.MCPClient")
+    def test_detect_office_hours(self, mock_mcp_cls):
+        from feishu_agent.orchestrator import Orchestrator
+        orch = Orchestrator()
+        assert orch.detect_role_for_node("项目立项") == "office-hours"
+        assert orch.detect_role_for_node("初始评估") == "office-hours"
+
+    @patch("feishu_agent.orchestrator.MCPClient")
+    def test_detect_review(self, mock_mcp_cls):
+        from feishu_agent.orchestrator import Orchestrator
+        orch = Orchestrator()
+        assert orch.detect_role_for_node("TR1评审") == "review"
+        assert orch.detect_role_for_node("CDCP评审") == "review"
+
+    @patch("feishu_agent.orchestrator.MCPClient")
+    def test_detect_qa(self, mock_mcp_cls):
+        from feishu_agent.orchestrator import Orchestrator
+        orch = Orchestrator()
+        assert orch.detect_role_for_node("可行性评估") == "qa"
+
+    @patch("feishu_agent.orchestrator.MCPClient")
+    def test_detect_default(self, mock_mcp_cls):
+        from feishu_agent.orchestrator import Orchestrator
+        orch = Orchestrator()
+        assert orch.detect_role_for_node("未知节点") == "office-hours"
+
+    @patch("feishu_agent.orchestrator.MCPClient")
+    def test_detect_from_detail(self, mock_mcp_cls):
+        from feishu_agent.orchestrator import Orchestrator
+        orch = Orchestrator()
+        detail = {"data": {"list": [{"basic": {"name": "需求拆解"}}]}}
+        assert orch.detect_role_for_node_from_detail(detail) == "browse"

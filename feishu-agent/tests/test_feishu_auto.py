@@ -37,14 +37,22 @@ class TestParser:
 
     def test_auto_command(self):
         from feishu_agent.feishu_auto import build_parser
-        args = build_parser().parse_args(["auto"])
+        args = build_parser().parse_args(["auto", "12345"])
         assert args.command == "auto"
+        assert args.work_item_id == "12345"
+        assert args.yes is False
+        assert args.timeout == 60
 
     def test_auto_with_yes_flag(self):
         from feishu_agent.feishu_auto import build_parser
-        args = build_parser().parse_args(["auto", "--yes"])
+        args = build_parser().parse_args(["auto", "12345", "--yes"])
         assert args.command == "auto"
         assert args.yes is True
+
+    def test_auto_with_timeout(self):
+        from feishu_agent.feishu_auto import build_parser
+        args = build_parser().parse_args(["auto", "12345", "--yes", "--timeout", "120"])
+        assert args.timeout == 120
 
     def test_verbose_flag(self):
         from feishu_agent.feishu_auto import build_parser
@@ -56,3 +64,13 @@ class TestParser:
         parser = build_parser()
         with pytest.raises(SystemExit):
             parser.parse_args(["invalid_cmd"])
+
+    def test_run_with_role(self):
+        from feishu_agent.feishu_auto import build_parser
+        args = build_parser().parse_args(["run", "12345", "investigate"])
+        assert args.role == "investigate"
+
+    def test_report_with_status(self):
+        from feishu_agent.feishu_auto import build_parser
+        args = build_parser().parse_args(["report", "12345", "--status", "failure"])
+        assert args.status == "failure"

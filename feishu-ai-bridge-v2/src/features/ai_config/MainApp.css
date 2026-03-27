@@ -1,0 +1,160 @@
+/* 主应用容器样式 */
+.main-app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #1f2937;
+}
+
+/* 选项卡导航栏 */
+.tab-navigation {
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 20px 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tab-nav-header {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.tab-nav-header h1 {
+  margin: 0 0 4px 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.tab-nav-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.tab-nav-tabs {
+  display: flex;
+  gap: 4px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 4px;
+  width: fit-content;
+  margin-left: 32px;
+}
+
+.tab-nav-button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 160px;
+}
+
+.tab-nav-button:hover {
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.tab-nav-button.active {
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  color: #6366f1;
+}
+
+.tab-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.tab-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+
+.tab-nav-button.active .tab-title {
+  color: #6366f1;
+}
+
+.tab-description {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.2;
+}
+
+/* 选项卡内容容器 */
+.tab-content-container {
+  flex: 1;
+  overflow: auto;
+  width: 100%;
+  max-width: none;
+}
+
+/* 确保子组件填满容器 */
+.tab-content-container > * {
+  height: 100%;
+  width: 100%;
+}
+
+/* 中等屏幕调整 */
+@media (max-width: 1024px) {
+  .tab-navigation {
+    padding: 18px 20px;
+  }
+
+  .tab-nav-tabs {
+    margin-left: 24px;
+  }
+
+  .tab-nav-button {
+    min-width: 140px;
+    padding: 10px 14px;
+  }
+}
+
+/* 小屏幕调整 */
+@media (max-width: 768px) {
+  .tab-navigation {
+    padding: 16px 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .tab-nav-tabs {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .tab-nav-button {
+    min-width: auto;
+    justify-content: flex-start;
+    flex: 1;
+  }
+
+  .tab-nav-header h1 {
+    font-size: 20px;
+  }
+
+  .tab-nav-header p {
+    font-size: 13px;
+  }
+}

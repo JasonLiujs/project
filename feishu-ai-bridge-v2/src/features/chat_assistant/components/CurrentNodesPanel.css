@@ -1,0 +1,250 @@
+/* 当前节点面板样式 */
+.current-nodes-panel {
+  background: #fafafa;
+  border: 1px solid #e1e4e8;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: #f6f8fa;
+  border-bottom: 1px solid #e1e4e8;
+}
+
+.panel-header h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #24292e;
+}
+
+.panel-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh-btn {
+  background: none;
+  border: 1px solid #d0d7de;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #656d76;
+  transition: all 0.2s ease;
+}
+
+.refresh-btn:hover {
+  background: #f3f4f6;
+  border-color: #8c949d;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.last-refresh {
+  font-size: 11px;
+  color: #656d76;
+}
+
+.nodes-container {
+  padding: 8px 16px;
+}
+
+.nodes-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.node-card {
+  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  padding: 8px;
+  transition: box-shadow 0.2s ease;
+  flex: 1;
+  min-width: 200px;
+  max-width: 300px;
+}
+
+.node-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.node-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.node-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #24292e;
+  flex: 1;
+}
+
+.node-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* 飞书工作流状态样式 */
+.status-not-started {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.status-in-progress {
+  background: #dafbe1;
+  color: #1a7f37;
+}
+
+.status-completed {
+  background: #e1f5fe;
+  color: #0277bd;
+}
+
+.status-unknown {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.node-skills {
+  margin-top: 6px;
+}
+
+.skills-label {
+  font-size: 10px;
+  color: #656d76;
+  margin-bottom: 4px;
+}
+
+.skills-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.skill-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.skill-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.skill-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.no-skills {
+  margin-top: 8px;
+}
+
+.no-skills-text {
+  font-size: 11px;
+  color: #8c949d;
+  font-style: italic;
+}
+
+/* 状态显示 */
+.loading-state,
+.error-state,
+.empty-state {
+  text-align: center;
+  padding: 16px;
+  color: #656d76;
+  font-size: 13px;
+}
+
+.error-state {
+  color: #cf222e;
+}
+
+.error-state .retry-btn {
+  margin-top: 8px;
+  background: #cf222e;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.error-state .retry-btn:hover {
+  background: #a40e26;
+}
+
+.error-state small {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+/* 加载中状态 */
+.current-nodes-panel.loading .panel-header h4::after {
+  content: '...';
+  animation: loading-dots 1.5s infinite;
+}
+
+@keyframes loading-dots {
+  0%, 20% { content: ''; }
+  40% { content: '.'; }
+  60% { content: '..'; }
+  80%, 100% { content: '...'; }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .nodes-list {
+    flex-direction: column;
+  }
+
+  .node-card {
+    min-width: unset;
+    max-width: unset;
+  }
+
+  .node-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .skills-buttons {
+    justify-content: flex-start;
+  }
+
+  .skill-btn {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+}

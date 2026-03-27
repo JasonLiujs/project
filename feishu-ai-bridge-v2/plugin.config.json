@@ -26,6 +26,14 @@
     {
       "id": "links_dashboard",
       "entry": "./src/features/links_dashboard/index.tsx"
+    },
+    {
+      "id": "dashboard_web_cd7mgb",
+      "entry": "./src/features/ai_config/index.tsx"
+    },
+    {
+      "id": "chat_assistant",
+      "entry": "./src/features/chat_assistant/index.tsx"
     }
   ]
 }

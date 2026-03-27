@@ -1,0 +1,31 @@
+{
+  "siteDomain": "https://project.feishu.cn",
+  "pluginId": "MII_68B7E15D35828013",
+  "pluginSecret": "4035723a1b0fdbfe32a7f9658161030bda8d07c8ada9ddac7fb2ed461da0024c26dc8c24a224e2a45d384cf8549bdc28",
+  "resources": [
+    {
+      "id": "ai_tab",
+      "entry": "./src/features/ai_tab/index.tsx"
+    },
+    {
+      "id": "ai_dashboard",
+      "entry": "./src/features/ai_dashboard/index.tsx"
+    },
+    {
+      "id": "ai_config",
+      "entry": "./src/features/ai_config/index.tsx"
+    },
+    {
+      "id": "board",
+      "entry": "./src/features/board/index.tsx"
+    },
+    {
+      "id": "view",
+      "entry": "./src/features/view/index.tsx"
+    },
+    {
+      "id": "links_dashboard",
+      "entry": "./src/features/links_dashboard/index.tsx"
+    }
+  ]
+}

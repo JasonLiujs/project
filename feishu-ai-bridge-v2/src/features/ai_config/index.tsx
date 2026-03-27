@@ -1,7 +1,7 @@
 import React, { lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 
-const App = lazy(() => import('./App'));
+const App = lazy(() => import('./MainApp'));
 
 export default async function main() {
   await window.JSSDK.shared.setSharedModules({

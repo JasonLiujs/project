@@ -1,6 +1,11 @@
 {
   "name": "feishu-ai-bridge-v2",
   "version": "2.0.0",
+  "scripts": {
+    "start": "lpm dev",
+    "build": "lpm build",
+    "preview": "lpm preview"
+  },
   "browserslist": {
     "production": [
       ">0.2%",
@@ -14,9 +19,13 @@
     ]
   },
   "dependencies": {
+    "@lark-project/js-sdk": "^2.0.5",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "http-proxy-middleware": "^3.0.5",
+    "node-fetch": "^2.7.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@lark-project/js-sdk": "^2.0.5"
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",

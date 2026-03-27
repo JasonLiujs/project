@@ -1,0 +1,59 @@
+{
+  "err": {},
+  "err_code": 0,
+  "err_msg": "",
+  "data": [
+    {
+      "work_item_type_key": "story",
+      "updated_by": "calculated_field",
+      "deleted_by": "",
+      "id": 6928175097,
+      "project_key": "69c1fe2d301d4662fccaf03a",
+      "current_nodes": [
+        {
+          "owners": ["7481325171635240962"],
+          "milestone": false,
+          "id": "start",
+          "name": "需求提出"
+        }
+      ],
+      "state_times": [
+        {
+          "name": "需求提出",
+          "state_key": "start",
+          "start_time": 1774456854709,
+          "end_time": 0
+        }
+      ],
+      "name": "支持网页端登录的方式",
+      "updated_at": 1774456860249,
+      "template_id": 6965393,
+      "template_type": "69c1fe2d301d4662fccaf03a_template_1774321215805942835",
+      "pattern": "Node",
+      "work_item_status": {
+        "state_key": "1j5ytzk2i",
+        "is_archived_state": false,
+        "is_init_state": false,
+        "updated_at": 1774456854729,
+        "updated_by": "7481325171635240962",
+        "history": [
+          {
+            "state_key": "started",
+            "is_archived_state": false,
+            "is_init_state": true,
+            "updated_at": 1774456854624,
+            "updated_by": "7481325171635240962"
+          }
+        ]
+      },
+      "deleted_at": 0,
+      "sub_stage": "1j5ytzk2i",
+      "created_by": "7481325171635240962",
+      "created_at": 1774456855127,
+      "fields": [
+        "... 各种字段数据 ..."
+      ],
+      "simple_name": "0yazv1"
+    }
+  ]
+}

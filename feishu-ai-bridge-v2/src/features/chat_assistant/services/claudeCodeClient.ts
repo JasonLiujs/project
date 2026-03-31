@@ -16,7 +16,7 @@ export interface ClaudeCodeConfig {
  * 默认的Claude Code本地配置
  */
 export const DEFAULT_CLAUDE_CODE_CONFIG: ClaudeCodeConfig = {
-  host: 'localhost',
+  host: '127.0.0.1',
   port: 3001,  // 桥接服务器端口
   protocol: 'http',
   apiPath: '/api/chat'  // API端点路径
@@ -45,6 +45,18 @@ export interface ClaudeCodeResponse {
       status: string;
       result?: string;
     };
+  };
+}
+
+export interface MemoryFileResponse {
+  status: 'success' | 'error';
+  error?: string;
+  message?: string;
+  memoryFile?: {
+    fileName: string;
+    filePath: string;
+    content: string;
+    completedAt: string;
   };
 }
 
@@ -125,6 +137,8 @@ export class ClaudeCodeClient {
       ...context
     };
 
+    let lastReachableError: string | null = null;
+
     for (const apiPath of possibleApiPaths) {
       try {
         const url = `${this.config.protocol}://${this.config.host}:${this.config.port}${apiPath}`;
@@ -166,6 +180,25 @@ export class ClaudeCodeClient {
           }
         }
 
+        const errorText = await response.text();
+        let errorMessage = `Claude Code 请求失败: ${response.status}`;
+        try {
+          const parsed = JSON.parse(errorText);
+          errorMessage =
+            parsed.message ||
+            parsed.error ||
+            parsed.response ||
+            errorMessage;
+        } catch {
+          if (errorText.trim()) {
+            errorMessage = errorText.trim();
+          }
+        }
+
+        lastReachableError = errorMessage;
+        console.log(`[ClaudeCode] API responded with error on ${apiPath}:`, errorMessage);
+        break;
+
       } catch (error) {
         console.log(`[ClaudeCode] API call failed on ${apiPath}:`, error);
         // 继续尝试下一个端点
@@ -173,6 +206,9 @@ export class ClaudeCodeClient {
     }
 
     // 如果所有端点都失败，抛出错误
+    if (lastReachableError) {
+      throw new Error(lastReachableError);
+    }
     throw new Error(`无法连接到Claude Code。已尝试的API端点: ${possibleApiPaths.join(', ')}`);
   }
 
@@ -230,6 +266,31 @@ export class ClaudeCodeClient {
     return this.sendMessage(message, skillContext);
   }
 
+  async generateMemoryFile(payload: Record<string, unknown>): Promise<NonNullable<MemoryFileResponse['memoryFile']>> {
+    const url = `${this.config.protocol}://${this.config.host}:${this.config.port}/api/memory-file`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ payload }),
+      signal: AbortSignal.timeout(120000)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`记忆文件生成失败: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json() as MemoryFileResponse;
+    if (data.status !== 'success' || !data.memoryFile) {
+      throw new Error(data.message || data.error || '记忆文件生成失败');
+    }
+
+    return data.memoryFile;
+  }
+
   /**
    * 取消当前请求
    */
@@ -259,7 +320,7 @@ export class ClaudeCodeClient {
  * 创建对不同端口的连接尝试
  */
 export async function detectClaudeCodePort(
-  host = 'localhost',
+  host = '127.0.0.1',
   ports = [3001, 3000, 8080, 8000, 8081, 5000]  // 3001端口优先（桥接服务器），然后是其他端口
 ): Promise<number | null> {
   const promises = ports.map(async (port) => {

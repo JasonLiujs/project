@@ -18,6 +18,7 @@ export interface MCPResponse {
       type: 'text';
       text: string;
     }>;
+    isError?: boolean;
   };
   error?: {
     code: number;
@@ -199,10 +200,25 @@ export class MCPClient {
         throw new Error(`MCP Error: ${data.error.code} - ${data.error.message}`);
       }
 
+      if (data.result?.isError) {
+        const message = data.result.content?.map((item) => item.text).join('\n') || 'MCP 返回错误';
+        throw new Error(message);
+      }
+
       if (data.result?.content?.[0]?.text) {
-        const parsedResult = JSON.parse(data.result.content[0].text) as T;
-        console.log(`[MCP] 解析后的结果:`, parsedResult);
-        return parsedResult;
+        const primaryText = data.result.content[0].text;
+
+        try {
+          const parsedResult = JSON.parse(primaryText) as T;
+          console.log(`[MCP] 解析后的结果:`, parsedResult);
+          return parsedResult;
+        } catch {
+          const rawTextResult = (data.result.content.length === 1
+            ? primaryText
+            : data.result.content.map((item) => item.text).join('\n')) as T;
+          console.log(`[MCP] 返回文本结果:`, rawTextResult);
+          return rawTextResult;
+        }
       }
 
       console.warn(`[MCP] 响应中没有找到预期的内容结构:`, data);
@@ -221,7 +237,7 @@ export class MCPClient {
     }
   }
 
-  async getWorkItemBrief(workItemId: string, workItemType: string) {
+  async getWorkItemBrief(workItemId: string, workItemType: string, projectKey?: string) {
     return this.callTool<{
       data?: {
         work_item_id: string;
@@ -230,7 +246,7 @@ export class MCPClient {
         [key: string]: unknown;
       };
     }>('get_workitem_brief', {
-      project_key: API_CONFIG.projectKey,
+      project_key: projectKey || API_CONFIG.projectKey,
       work_item_id: workItemId,
       work_item_type: workItemType,
     });
@@ -272,7 +288,7 @@ export class MCPClient {
     });
   }
 
-  async listWorkItemComments(workItemId: string) {
+  async listWorkItemComments(workItemId: string, projectKey?: string) {
     return this.callTool<{
       data?: {
         comments: Array<{
@@ -283,15 +299,15 @@ export class MCPClient {
         }>;
       };
     }>('list_workitem_comments', {
-      project_key: API_CONFIG.projectKey,
+      project_key: projectKey || API_CONFIG.projectKey,
       work_item_id: workItemId,
       page_num: 1,
     });
   }
 
-  async addComment(workItemId: string, content: string) {
+  async addComment(workItemId: string, content: string, projectKey?: string) {
     return this.callTool('add_comment', {
-      project_key: API_CONFIG.projectKey,
+      project_key: projectKey || API_CONFIG.projectKey,
       work_item_id: workItemId,
       comment_content: content,
     });
@@ -315,7 +331,7 @@ export class MCPClient {
     });
   }
 
-  async getWorkItemOpRecord(workItemId: string) {
+  async getWorkItemOpRecord(workItemId: string, projectKey?: string) {
     return this.callTool<{
       data?: {
         records: Array<{
@@ -326,7 +342,7 @@ export class MCPClient {
         }>;
       };
     }>('get_workitem_op_record', {
-      project_key: API_CONFIG.projectKey,
+      project_key: projectKey || API_CONFIG.projectKey,
       work_item_id: [workItemId],
       page_num: 1,
     });
@@ -347,13 +363,36 @@ export class MCPClient {
     });
   }
 
-  async updateWorkItemFields(workItemId: string, workItemType: string, fields: Array<{ field_key: string; field_value: unknown }>) {
-    return this.callTool('update_workitem_fields', {
-      project_key: API_CONFIG.projectKey,
-      work_item_id: workItemId,
-      work_item_type: workItemType,
-      fields,
+  async updateWorkItemFields(
+    workItemId: string,
+    workItemType: string,
+    fields: Array<{ field_key: string; field_value: unknown }>,
+    projectKey?: string
+  ) {
+    const updateUrl = `${API_CONFIG.proxyUrl}/api/work-items/update`;
+    const headers = await this.getAuthHeaders();
+
+    console.log('[工作项更新] 通过后端代理服务器调用API:', updateUrl);
+    console.log('[工作项更新] 更新字段:', fields);
+
+    const response = await fetch(updateUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        space_id: projectKey || API_CONFIG.projectKey,
+        work_item_id: workItemId,
+        work_item_type: workItemType,
+        fields,
+      }),
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[工作项更新] API错误响应:', errorText);
+      throw new Error(`更新工作项字段失败: ${response.status} - ${errorText}`);
+    }
+
+    return response.json();
   }
 
   /**

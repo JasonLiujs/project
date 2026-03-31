@@ -46,6 +46,121 @@ app.use((req, res, next) => {
 });
 
 /**
+ * 工作项附件上传API
+ * POST /api/work-items/file/upload?space_id=xxx&work_item_type=story&work_item_id=123
+ */
+app.post('/api/work-items/file/upload', async (req, res) => {
+  try {
+    console.log('\n🚀 [工作项附件上传] 开始处理请求');
+
+    const spaceId = req.query.space_id || req.headers['x-space-id'] || CONFIG.projectKey;
+    const workItemType = req.query.work_item_type || req.headers['x-work-item-type'];
+    const workItemId = req.query.work_item_id || req.headers['x-work-item-id'];
+
+    if (!spaceId || !workItemType || !workItemId) {
+      return res.status(400).json({
+        error: '缺少必要参数',
+        message: '需要提供 space_id, work_item_type, work_item_id',
+      });
+    }
+
+    const feishuApiUrl = `${CONFIG.feishuDomain}/open_api/${spaceId}/work_item/${workItemType}/${workItemId}/file/upload`;
+    console.log(`📍 目标URL: ${feishuApiUrl}`);
+
+    const headers = {
+      'User-Agent': 'feishu-ai-bridge-v2/1.0.0',
+    };
+
+    ['content-type', 'content-length', 'x-plugin-token', 'x-user-key', 'authorization'].forEach((header) => {
+      if (req.headers[header]) {
+        headers[header] = req.headers[header];
+      }
+    });
+
+    const response = await fetch(feishuApiUrl, {
+      method: 'POST',
+      headers,
+      body: req,
+    });
+
+    const buffer = await response.buffer();
+    const contentType = response.headers.get('content-type');
+    if (contentType) {
+      res.setHeader('Content-Type', contentType);
+    }
+
+    console.log(`📊 附件上传响应状态: ${response.status} ${response.statusText}`);
+    res.status(response.status).send(buffer);
+  } catch (error) {
+    console.error('\n❌ [工作项附件上传] 请求处理失败:', error);
+    res.status(500).json({
+      error: '服务器内部错误',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * 工作项附件下载API
+ * POST /api/work-items/file/download
+ */
+app.post('/api/work-items/file/download', async (req, res) => {
+  try {
+    console.log('\n🚀 [工作项附件下载] 开始处理请求');
+
+    const spaceId = req.body.space_id || req.body.project_key || CONFIG.projectKey;
+    const workItemType = req.body.work_item_type || req.body.work_item_type_key;
+    const workItemId = req.body.work_item_id;
+
+    if (!spaceId || !workItemType || !workItemId) {
+      return res.status(400).json({
+        error: '缺少必要参数',
+        message: '需要提供 project_key/space_id, work_item_type_key, work_item_id',
+      });
+    }
+
+    const feishuApiUrl = `${CONFIG.feishuDomain}/open_api/${spaceId}/work_item/${workItemType}/${workItemId}/file/download`;
+    console.log(`📍 目标URL: ${feishuApiUrl}`);
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'feishu-ai-bridge-v2/1.0.0',
+    };
+
+    ['x-plugin-token', 'x-user-key', 'authorization'].forEach((header) => {
+      if (req.headers[header]) {
+        headers[header] = req.headers[header];
+      }
+    });
+
+    const response = await fetch(feishuApiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(req.body || {}),
+    });
+
+    const buffer = await response.buffer();
+    const contentType = response.headers.get('content-type');
+    const contentDisposition = response.headers.get('content-disposition');
+    if (contentType) {
+      res.setHeader('Content-Type', contentType);
+    }
+    if (contentDisposition) {
+      res.setHeader('Content-Disposition', contentDisposition);
+    }
+
+    console.log(`📊 附件下载响应状态: ${response.status} ${response.statusText}`);
+    res.status(response.status).send(buffer);
+  } catch (error) {
+    console.error('\n❌ [工作项附件下载] 请求处理失败:', error);
+    res.status(500).json({
+      error: '服务器内部错误',
+      message: error.message,
+    });
+  }
+});
+
+/**
  * 工作项查询API
  * POST /api/work-items/query
  */
@@ -155,6 +270,142 @@ app.post('/api/work-items/query', async (req, res) => {
     });
 
     console.log(`💥 [工作项查询] 错误处理完成\n`);
+  }
+});
+
+/**
+ * 工作项字段更新API
+ * POST /api/work-items/update
+ */
+app.post('/api/work-items/update', async (req, res) => {
+  try {
+    console.log('\n🚀 [工作项更新] 开始处理请求');
+
+    const spaceId = req.body.space_id || req.query.space_id || CONFIG.projectKey;
+    const workItemType = req.body.work_item_type;
+    const workItemId = req.body.work_item_id;
+    const updateFields = req.body.fields || req.body.update_fields;
+
+    if (!workItemType || !workItemId || !Array.isArray(updateFields)) {
+      return res.status(400).json({
+        error: '缺少必要参数',
+        message: '需要提供 work_item_type, work_item_id, fields/update_fields',
+      });
+    }
+
+    const feishuApiUrl = `${CONFIG.feishuDomain}/open_api/${spaceId}/work_item/${workItemType}/${workItemId}`;
+    console.log(`📍 目标URL: ${feishuApiUrl}`);
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'feishu-ai-bridge-v2/1.0.0',
+    };
+
+    ['x-plugin-token', 'x-user-key', 'authorization'].forEach((header) => {
+      if (req.headers[header]) {
+        headers[header] = req.headers[header];
+      }
+    });
+
+    const requestBody = {
+      update_fields: updateFields,
+    };
+
+    console.log('📤 更新字段:', JSON.stringify(requestBody, null, 2));
+
+    const response = await fetch(feishuApiUrl, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseText = await response.text();
+    let responseData;
+
+    try {
+      responseData = JSON.parse(responseText);
+      console.log('✅ 解析JSON成功');
+    } catch (parseError) {
+      responseData = {
+        error: 'Invalid JSON response',
+        rawResponse: responseText.substring(0, 500),
+      };
+    }
+
+    console.log('📄 完整更新响应内容:', JSON.stringify(responseData, null, 2));
+
+    res.status(response.status).json(responseData);
+    console.log('✅ [工作项更新] 请求处理完成\n');
+  } catch (error) {
+    console.error('\n❌ [工作项更新] 请求处理失败:', error);
+    res.status(500).json({
+      error: '服务器内部错误',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * 复合字段更新API
+ * POST /api/work-items/update-compound-field
+ */
+app.post('/api/work-items/update-compound-field', async (req, res) => {
+  try {
+    console.log('\n🚀 [复合字段更新] 开始处理请求');
+
+    const requestBody = req.body || {};
+    const projectKey = requestBody.project_key || requestBody.space_id || CONFIG.projectKey;
+
+    if (!projectKey) {
+      return res.status(400).json({
+        error: '缺少必要参数',
+        message: '需要提供 project_key/space_id',
+      });
+    }
+
+    const feishuApiUrl = `${CONFIG.feishuDomain}/open_api/work_item/field_value/update_compound_field`;
+    console.log(`📍 目标URL: ${feishuApiUrl}`);
+    console.log('📤 复合字段请求体:', JSON.stringify(requestBody, null, 2));
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'feishu-ai-bridge-v2/1.0.0',
+    };
+
+    ['x-plugin-token', 'x-user-key', 'authorization'].forEach((header) => {
+      if (req.headers[header]) {
+        headers[header] = req.headers[header];
+      }
+    });
+
+    const response = await fetch(feishuApiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseText = await response.text();
+    let responseData;
+
+    try {
+      responseData = JSON.parse(responseText);
+      console.log('✅ 解析JSON成功');
+    } catch (parseError) {
+      responseData = {
+        error: 'Invalid JSON response',
+        rawResponse: responseText.substring(0, 500),
+      };
+    }
+
+    console.log('📄 完整复合字段更新响应内容:', JSON.stringify(responseData, null, 2));
+    res.status(response.status).json(responseData);
+    console.log('✅ [复合字段更新] 请求处理完成\n');
+  } catch (error) {
+    console.error('\n❌ [复合字段更新] 请求处理失败:', error);
+    res.status(500).json({
+      error: '服务器内部错误',
+      message: error.message,
+    });
   }
 });
 
@@ -400,6 +651,153 @@ app.post('/api/workflow/query', async (req, res) => {
     });
 
     console.log(`💥 [工作流查询] 错误处理完成\n`);
+  }
+});
+
+/**
+ * 工作流节点操作API
+ * POST /api/workflow/node/operate
+ */
+app.post('/api/workflow/node/operate', async (req, res) => {
+  try {
+    console.log('\n🚀 [工作流节点操作] 开始处理请求');
+
+    const {
+      project_key,
+      work_item_type_key,
+      work_item_id,
+      node_id,
+      action,
+      rollback_reason,
+      node_owners,
+      node_schedule,
+      schedules,
+      fields,
+      role_assignee,
+    } = req.body;
+
+    if (!project_key || !work_item_type_key || !work_item_id || !node_id) {
+      return res.status(400).json({
+        error: '缺少必要参数',
+        message: '需要提供 project_key, work_item_type_key, work_item_id, node_id',
+      });
+    }
+
+    const feishuApiUrl = `${CONFIG.feishuDomain}/open_api/${project_key}/workflow/${work_item_type_key}/${work_item_id}/node/${node_id}/operate`;
+    console.log(`📍 目标URL: ${feishuApiUrl}`);
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'feishu-ai-bridge-v2/1.0.0',
+    };
+
+    ['x-plugin-token', 'x-user-key', 'authorization'].forEach((header) => {
+      if (req.headers[header]) {
+        headers[header] = req.headers[header];
+      }
+    });
+
+    const requestBody = {
+      ...(action ? { action } : {}),
+      ...(rollback_reason ? { rollback_reason } : {}),
+      ...(Array.isArray(node_owners) ? { node_owners } : {}),
+      ...(node_schedule ? { node_schedule } : {}),
+      ...(Array.isArray(schedules) ? { schedules } : {}),
+      ...(Array.isArray(fields) ? { fields } : {}),
+      ...(Array.isArray(role_assignee) ? { role_assignee } : {}),
+    };
+
+    console.log('📤 节点操作请求体:', JSON.stringify(requestBody, null, 2));
+
+    const response = await fetch(feishuApiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseText = await response.text();
+    let responseData;
+
+    try {
+      responseData = JSON.parse(responseText);
+      console.log('✅ 解析JSON成功');
+    } catch (parseError) {
+      responseData = {
+        error: 'Invalid JSON response',
+        rawResponse: responseText.substring(0, 500),
+      };
+    }
+
+    console.log('📄 完整节点操作响应内容:', JSON.stringify(responseData, null, 2));
+    res.status(response.status).json(responseData);
+    console.log('✅ [工作流节点操作] 请求处理完成\n');
+  } catch (error) {
+    console.error('\n❌ [工作流节点操作] 请求处理失败:', error);
+    res.status(500).json({
+      error: '服务器内部错误',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * 字段定义查询API
+ * POST /api/fields/all
+ */
+app.post('/api/fields/all', async (req, res) => {
+  try {
+    console.log('\n🚀 [字段定义查询] 开始处理请求');
+
+    const { project_key } = req.body;
+    if (!project_key) {
+      return res.status(400).json({
+        error: '缺少必要参数',
+        message: '需要提供 project_key',
+      });
+    }
+
+    const feishuApiUrl = `${CONFIG.feishuDomain}/open_api/${project_key}/field/all`;
+    console.log(`📍 目标URL: ${feishuApiUrl}`);
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'feishu-ai-bridge-v2/1.0.0',
+    };
+
+    ['x-plugin-token', 'x-user-key', 'authorization'].forEach((header) => {
+      if (req.headers[header]) {
+        headers[header] = req.headers[header];
+      }
+    });
+
+    const response = await fetch(feishuApiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(req.body),
+    });
+
+    const responseText = await response.text();
+    let responseData;
+
+    try {
+      responseData = JSON.parse(responseText);
+      console.log('✅ 解析JSON成功');
+    } catch (parseError) {
+      responseData = {
+        error: 'Invalid JSON response',
+        rawResponse: responseText.substring(0, 500),
+      };
+    }
+
+    console.log('📄 完整字段定义响应内容:', JSON.stringify(responseData, null, 2));
+    res.status(response.status).json(responseData);
+    console.log('✅ [字段定义查询] 请求处理完成\n');
+  } catch (error) {
+    console.error('\n❌ [字段定义查询] 请求处理失败:', error);
+    res.status(500).json({
+      error: '服务器内部错误',
+      message: error.message,
+    });
   }
 });
 

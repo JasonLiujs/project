@@ -11,6 +11,9 @@ import './CurrentNodesPanel.css';
 
 interface CurrentNodesPanelProps {
   onSkillTrigger: (skillName: string, nodeId: string) => Promise<void>;
+  onNodeComplete: (node: WorkflowNodeInfo) => Promise<void>;
+  onNodeActivate: (node: WorkflowNodeInfo & { skills: string[]; skillDisplayNames: string[] }) => Promise<void>;
+  activeNodeId?: string | null;
   refreshInterval?: number;
 }
 
@@ -21,12 +24,16 @@ interface NodeDisplayInfo extends WorkflowNodeInfo {
 
 export default function CurrentNodesPanel({
   onSkillTrigger,
+  onNodeComplete,
+  onNodeActivate,
+  activeNodeId = null,
   refreshInterval = 30000 // 30秒刷新一次
 }: CurrentNodesPanelProps) {
   const [nodes, setNodes] = useState<NodeDisplayInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [completingNodeIds, setCompletingNodeIds] = useState<Set<string>>(new Set());
 
   const { spaceId, workItemType, workItemId, loading: contextLoading } = useWorkItemContext();
 
@@ -131,6 +138,31 @@ export default function CurrentNodesPanel({
     }
   };
 
+  const handleNodeComplete = async (node: WorkflowNodeInfo) => {
+    if (completingNodeIds.has(node.id)) {
+      return;
+    }
+
+    setCompletingNodeIds((prev) => new Set(prev).add(node.id));
+    try {
+      await onNodeComplete(node);
+    } finally {
+      setCompletingNodeIds((prev) => {
+        const next = new Set(prev);
+        next.delete(node.id);
+        return next;
+      });
+    }
+  };
+
+  const handleNodeActivate = async (node: NodeDisplayInfo) => {
+    try {
+      await onNodeActivate(node);
+    } catch (error) {
+      // 忽略错误，交给上层提示
+    }
+  };
+
   /**
    * 格式化时间
    */
@@ -204,12 +236,45 @@ export default function CurrentNodesPanel({
         ) : (
           <div className="nodes-list">
             {nodes.map((node) => (
-              <div key={node.id} className="node-card">
+              <div
+                key={node.id}
+                className={`node-card ${activeNodeId === node.id ? 'is-active-developing' : ''}`}
+                onClick={() => handleNodeActivate(node)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    handleNodeActivate(node);
+                  }
+                }}
+              >
                 <div className="node-info">
                   <div className="node-name">{node.name}</div>
                   <div className={`node-status ${getStatusClassName(node.status)}`}>
                     {getStatusDisplayText(node.status)}
                   </div>
+                </div>
+
+                {activeNodeId === node.id && (
+                  <div className="node-active-banner">
+                    <span className="node-active-dot" />
+                    Claude Code 正在开发该节点
+                  </div>
+                )}
+
+                <div className="node-actions">
+                  <button
+                    className="node-complete-btn"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleNodeComplete(node);
+                    }}
+                    disabled={completingNodeIds.has(node.id)}
+                    title="完成当前节点并生成记忆文件"
+                  >
+                    {completingNodeIds.has(node.id) ? '生成中...' : '✅ 完成'}
+                  </button>
                 </div>
 
                 {node.skills.length > 0 && (
@@ -220,7 +285,10 @@ export default function CurrentNodesPanel({
                         <button
                           key={skill}
                           className="skill-btn"
-                          onClick={() => handleSkillTrigger(skill, node.id, node.name)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleSkillTrigger(skill, node.id, node.name);
+                          }}
                           title={`触发技能: ${skill}`}
                         >
                           {node.skillDisplayNames[index]}

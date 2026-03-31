@@ -1,250 +1,487 @@
 #!/usr/bin/env node
 
 /**
- * Claude Code HTTP桥接服务器
- * 将HTTP请求桥接到本地Claude Code的stdin/stdout接口
+ * Claude Code HTTP bridge server
+ * - Chat: forwards requests to the local Claude Code CLI
+ * - Memory file: generates structured markdown, writes backup files,
+ *   then returns the artifact metadata for the frontend to sync to Feishu
  */
 
 const http = require('http');
-const { spawn } = require('child_process');
 const url = require('url');
+const path = require('path');
+const fs = require('fs/promises');
+const { spawn } = require('child_process');
 
-const PORT = 3001; // 使用不同的端口避免冲突
-const CLAUDE_BINARY = '/Users/bytedance/.vscode/extensions/anthropic.claude-code-2.1.81-darwin-arm64/resources/native-binary/claude';
+const PORT = 3001;
+const HOST = '127.0.0.1';
+const CLAUDE_BINARY =
+  process.env.CLAUDE_BINARY ||
+  '/Users/bytedance/.vscode/extensions/anthropic.claude-code-2.1.81-darwin-arm64/resources/native-binary/claude';
+const DEFAULT_WORKSPACE_ROOT = '/Users/bytedance/project/project/feishu-ai-bridge-v2';
+const REQUEST_TIMEOUT_MS = 120000;
 
-class ClaudeBridge {
-  constructor() {
-    this.initializeClaude();
+function sendJson(res, statusCode, data) {
+  res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(data));
+}
+
+function sanitizeFileNamePart(value) {
+  return String(value || 'unknown')
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/\s+/g, '')
+    .slice(0, 80) || 'unknown';
+}
+
+function toCompactTimestamp(input) {
+  const date = input ? new Date(input) : new Date();
+  if (Number.isNaN(date.getTime())) {
+    return toCompactTimestamp();
   }
 
-  initializeClaude() {
-    console.log('🚀 启动Claude Code桥接服务器...');
-    console.log('📋 使用每请求独立进程模式，无需持久连接');
-    console.log('✅ Claude Code桥接服务器已启动');
+  const yyyy = date.getFullYear();
+  const mm = `${date.getMonth() + 1}`.padStart(2, '0');
+  const dd = `${date.getDate()}`.padStart(2, '0');
+  const hh = `${date.getHours()}`.padStart(2, '0');
+  const min = `${date.getMinutes()}`.padStart(2, '0');
+  return `${yyyy}${mm}${dd}${hh}${min}`;
+}
+
+function createMemoryFileName(payload) {
+  return [
+    sanitizeFileNamePart(payload.projectId || payload.projectKey || payload.spaceId),
+    sanitizeFileNamePart(payload.node?.name),
+    toCompactTimestamp(payload.completedAt),
+    '记忆文件.md',
+  ].join('-');
+}
+
+function buildChatPrompt(message, context = {}) {
+  const contextLines = [];
+  if (context.nodeId) {
+    contextLines.push(`当前节点ID: ${context.nodeId}`);
+  }
+  if (context.workspaceRoot) {
+    contextLines.push(`工作目录: ${context.workspaceRoot}`);
+  }
+  if (Array.isArray(context.skills) && context.skills.length > 0) {
+    contextLines.push(`相关技能: ${context.skills.join(', ')}`);
+  }
+  if (context.workflowContext) {
+    contextLines.push(`工作流上下文: ${JSON.stringify(context.workflowContext, null, 2)}`);
+  }
+  if (context.skillExecution?.skillName) {
+    contextLines.push(`正在执行技能: ${context.skillExecution.skillName}`);
   }
 
+  return [
+    '你是飞书项目插件中的 Claude Code 助手。',
+    '请直接回答用户问题，使用中文，内容真实、简洁、可执行。',
+    contextLines.length > 0 ? `\n上下文:\n${contextLines.join('\n')}` : '',
+    '\n用户消息:',
+    message,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
 
-  async sendToClaude(message) {
-    console.log('📤 接收到来自插件的消息:', message);
+function buildMemoryFilePrompt(payload) {
+  return [
+    '请基于以下 JSON 数据，生成一份标准化 Markdown 记忆文件。',
+    '必须满足：',
+    '1. 使用中文。',
+    '2. 必须包含 5 个一级模块，标题分别是：',
+    '   - ## 01-基础信息',
+    '   - ## 02-工作详情',
+    '   - ## 03-工作成果',
+    '   - ## 04-指导思路',
+    '   - ## 05-索引与备注',
+    '3. 不要省略模块；如果某项缺失，请明确写“暂无”或“无异常”。',
+    '4. 内容要忠实于输入数据，避免臆造。',
+    '5. 输出只能是 Markdown 正文，不要再包 JSON，不要加额外解释。',
+    '',
+    '输入数据:',
+    JSON.stringify(payload, null, 2),
+  ].join('\n');
+}
 
-    // 提供连接到当前Claude Code会话的智能响应
-    // 模拟真实的Claude Code助手交互体验
+function formatList(items, emptyText = '暂无') {
+  if (!Array.isArray(items) || items.length === 0) {
+    return `- ${emptyText}`;
+  }
 
-    // 智能响应逻辑
-    if (message.includes('你好') || message.includes('Hello') || message.includes('hi')) {
-      return `你好！我是Claude Code AI助手，正在通过桥接服务器为您提供服务。
+  return items
+    .filter(Boolean)
+    .map((item) => `- ${String(item)}`)
+    .join('\n');
+}
 
-我可以帮助您：
-• 🔍 代码审查和优化建议
-• 🏗️ 架构设计和重构指导
-• 🐛 Bug调试和问题诊断
-• ⚡ 性能优化和最佳实践
-• 📝 文档编写和代码注释
+function createFallbackMemoryMarkdown(payload) {
+  const outcomes = Array.isArray(payload.outcomes) ? payload.outcomes : [];
+  const predecessorNodes = Array.isArray(payload.predecessorNodes) ? payload.predecessorNodes : [];
+  const workDetails = payload.workDetails || {};
+  const guidance = payload.guidance || {};
 
-请告诉我您的具体需求！`;
+  return [
+    '## 01-基础信息',
+    `### 节点名称\n- ${payload.node?.name || '暂无'}`,
+    `### 所属项目\n- 项目ID: ${payload.projectId || payload.projectKey || payload.spaceId || '暂无'}\n- 空间ID: ${payload.spaceId || '暂无'}`,
+    `### 执行主体\n- AI Agent: ${payload.agentName || 'Claude Code'}\n- 协同角色: ${Array.isArray(payload.collaborators) && payload.collaborators.length > 0 ? payload.collaborators.join('，') : '暂无'}`,
+    `### 执行时间\n- 启动时间: ${payload.startedAt || '暂无'}\n- 完成时间: ${payload.completedAt || new Date().toISOString()}`,
+    `### 前置依赖\n${formatList(predecessorNodes.map((item) => `${item.name || '前置节点'}：${item.output || '暂无产出说明'}`))}`,
+    `### 节点目标\n- ${payload.nodeGoal || '完成当前节点工作并沉淀结构化记忆文件。'}`,
+    '',
+    '## 02-工作详情',
+    `### 工作内容\n${formatList(workDetails.workItems, '暂无工作内容')}`,
+    `### 执行逻辑\n${formatList(workDetails.executionLogic, '暂无执行逻辑')}`,
+    `### 关键操作\n${formatList(workDetails.keyOperations, '暂无关键操作')}`,
+    `### 异常处理\n${formatList(workDetails.exceptions, '无异常')}`,
+    '',
+    '## 03-工作成果',
+    `### 成果清单\n${formatList(outcomes.map((item) => `${item.name || '未命名成果'}（${item.format || '未知格式'}）`), '暂无成果')}`,
+    `### 存储信息\n${formatList(outcomes.map((item) => item.path || '待写回后补充'), '暂无存储信息')}`,
+    `### 成果说明\n${formatList(outcomes.map((item) => item.description || '暂无说明'), '暂无成果说明')}`,
+    `### 成果校验\n${formatList(outcomes.map((item) => item.validation || '待校验'), '暂无校验结果')}`,
+    '',
+    '## 04-指导思路',
+    `### 指导人员\n${formatList(guidance.people, '暂无指导人员')}`,
+    `### 核心指导思路\n${formatList(guidance.directions, '暂无指导思路')}`,
+    `### 指导调整\n${formatList(guidance.adjustments, '暂无指导调整')}`,
+    `### 指导总结\n- ${guidance.summary || '优先保证当前节点信息完整、可追溯、可复用。'}`,
+    '',
+    '## 05-索引与备注',
+    `### 关键词索引\n- ${Array.isArray(payload.keywords) && payload.keywords.length > 0 ? payload.keywords.join(', ') : '暂无关键词'}`,
+    `### 备注信息\n${formatList(payload.remarks, '暂无备注')}`,
+    `### 版本说明\n- ${payload.version || 'V1.0'}`,
+    '',
+    '> 注：本文件由节点完成动作自动生成；当前环境下 Claude CLI 未返回正文时，已自动使用结构化兜底模板补齐。',
+  ].join('\n\n');
+}
+
+function deriveNodeNameFromFileName(fileName, projectId) {
+  if (!fileName.endsWith('-记忆文件.md')) {
+    return '';
+  }
+
+  const prefix = `${projectId}-`;
+  if (!fileName.startsWith(prefix)) {
+    return '';
+  }
+
+  const withoutProject = fileName.slice(prefix.length);
+  const suffix = '-记忆文件.md';
+  const withoutSuffix = withoutProject.slice(0, -suffix.length);
+  const lastDashIndex = withoutSuffix.lastIndexOf('-');
+  if (lastDashIndex <= 0) {
+    return '';
+  }
+
+  return withoutSuffix.slice(0, lastDashIndex);
+}
+
+async function appendErrorLog(workspaceRoot, error) {
+  const logDir = path.join(workspaceRoot || DEFAULT_WORKSPACE_ROOT, 'memory-files');
+  const logPath = path.join(logDir, 'memory-file-errors.log');
+  await fs.mkdir(logDir, { recursive: true });
+  const logEntry = [
+    `time=${new Date().toISOString()}`,
+    `error=${error instanceof Error ? error.message : String(error)}`,
+    '',
+  ].join('\n');
+  await fs.appendFile(logPath, logEntry, 'utf8');
+}
+
+function runClaudePrompt(prompt, options = {}) {
+  const workspaceRoot = options.workspaceRoot || DEFAULT_WORKSPACE_ROOT;
+  const timeoutMs = options.timeoutMs || REQUEST_TIMEOUT_MS;
+  const args = ['-p', '--output-format', 'text'];
+
+  if (workspaceRoot) {
+    args.push('--add-dir', workspaceRoot);
+  }
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(CLAUDE_BINARY, args, {
+      cwd: workspaceRoot,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let killedByTimeout = false;
+
+    const timer = setTimeout(() => {
+      killedByTimeout = true;
+      child.kill('SIGTERM');
+    }, timeoutMs);
+
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (killedByTimeout) {
+        reject(new Error('Claude Code 执行超时'));
+        return;
+      }
+
+      if (code !== 0) {
+        reject(new Error(stderr.trim() || stdout.trim() || `Claude Code 退出码异常: ${code}`));
+        return;
+      }
+
+      const content = stdout.trim();
+      if (!content) {
+        reject(new Error('Claude Code 返回空内容'));
+        return;
+      }
+
+      resolve(content);
+    });
+
+    child.stdin.write(prompt);
+    child.stdin.end();
+  });
+}
+
+async function parseRequestBody(req) {
+  let body = '';
+  for await (const chunk of req) {
+    body += chunk.toString();
+  }
+
+  if (!body) {
+    return {};
+  }
+
+  return JSON.parse(body);
+}
+
+async function handleChat(requestData) {
+  const message = requestData.message || requestData.content || '';
+  if (!message) {
+    throw new Error('消息不能为空');
+  }
+
+  const prompt = buildChatPrompt(message, requestData);
+  const response = await runClaudePrompt(prompt, {
+    workspaceRoot: requestData.workspaceRoot || DEFAULT_WORKSPACE_ROOT,
+  });
+
+  return {
+    response,
+    status: 'success',
+    metadata: {
+      endpoint: '/api/chat',
+      timestamp: new Date().toISOString(),
+      requestId: Date.now().toString(),
+      source: 'real-claude-code',
+    },
+  };
+}
+
+async function handleMemoryFile(requestData) {
+  const payload = requestData.payload;
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('缺少记忆文件 payload');
+  }
+
+  const workspaceRoot = payload.workspaceRoot || DEFAULT_WORKSPACE_ROOT;
+  const backupDir = payload.backupDir || path.join(workspaceRoot, 'memory-files');
+  const fileName = createMemoryFileName(payload);
+  const filePath = path.join(backupDir, fileName);
+  const prompt = buildMemoryFilePrompt(payload);
+
+  await fs.mkdir(backupDir, { recursive: true });
+
+  try {
+    let content;
+
+    try {
+      content = await runClaudePrompt(prompt, { workspaceRoot });
+    } catch (error) {
+      await appendErrorLog(workspaceRoot, error);
+      content = createFallbackMemoryMarkdown(payload);
     }
 
-    if (message.includes('测试') || message.includes('test')) {
-      return `✅ 连接测试成功！
+    await fs.writeFile(filePath, content, 'utf8');
 
-🔗 桥接状态：正常运行
-📡 服务端口：3001
-🤖 AI助手：Claude Code
-💬 会话模式：HTTP桥接
-
-您发送的测试消息已成功传递。请提出您的具体问题或需求！`;
-    }
-
-    // 技能执行
-    if (message.includes('Execute skill:') || message.includes('执行技能')) {
-      const skillMatch = message.match(/Execute skill:\s*([^,\n]+)/i);
-      const skillName = skillMatch ? skillMatch[1].trim() : '未指定技能';
-
-      return `🔄 正在执行技能：${skillName}
-
-⚙️ 技能执行中...
-📊 分析当前项目结构
-🔍 检查代码质量
-📋 生成执行报告
-
-✅ 技能执行完成！
-
-结果摘要：
-• 项目结构：飞书AI桥接v2插件
-• 技术栈：React + TypeScript + Node.js
-• 连接状态：桥接服务器正常运行
-• 建议：代码架构清晰，建议添加更多错误处理
-
-如需具体的技能执行结果，请告诉我您的详细需求。`;
-    }
-
-    // 项目相关问题
-    if (message.includes('项目') || message.includes('代码') || message.includes('分析')) {
-      return `📊 当前项目分析：
-
-📁 **项目概述**
-• 名称：feishu-ai-bridge-v2
-• 类型：飞书插件 (React + TypeScript)
-• 功能：AI工作流助手
-
-🏗️ **架构分析**
-• 前端：React组件化设计
-• 后端：Node.js桥接服务器
-• 通信：HTTP API (localhost:3001)
-• 部署：lpm开发服务器 (localhost:3339)
-
-✅ **运行状态**
-• 插件服务器：✅ 正常运行
-• 桥接服务器：✅ 正常运行
-• AI连接：✅ 通信正常
-
-您希望我重点分析项目的哪个方面？`;
-    }
-
-    // 默认智能响应
-    return `我是Claude Code AI助手，收到您的消息：
-
-"${message}"
-
-🤖 **我的能力**：
-• 代码分析和重构建议
-• 架构设计和优化方案
-• 问题诊断和解决方案
-• 技能执行和工作流自动化
-
-💡 **当前项目**：
-您的飞书AI桥接插件运行良好，我可以帮助您：
-- 优化插件性能
-- 增强用户体验
-- 添加新功能
-- 解决技术问题
-
-请告诉我您希望我协助解决什么具体问题？`;
+    return {
+      status: 'success',
+      memoryFile: {
+        fileName,
+        filePath,
+        content,
+        completedAt: new Date().toISOString(),
+      },
+    };
+  } catch (error) {
+    await appendErrorLog(workspaceRoot, error);
+    throw error;
   }
 }
 
-// 创建桥接实例
-const bridge = new ClaudeBridge();
+async function handleMemoryFileSearch(requestData) {
+  const projectId = String(requestData.projectId || '').trim();
+  if (!projectId) {
+    throw new Error('缺少 projectId');
+  }
 
-// 创建HTTP服务器
+  const workspaceRoot = requestData.workspaceRoot || DEFAULT_WORKSPACE_ROOT;
+  const backupDir = requestData.backupDir || path.join(workspaceRoot, 'memory-files');
+  const excludeNodeName = String(requestData.excludeNodeName || '').trim();
+  const nodeNames = Array.isArray(requestData.nodeNames)
+    ? requestData.nodeNames.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
+  const limit = Math.max(1, Math.min(Number(requestData.limit) || 5, 20));
+
+  const fileNames = await fs.readdir(backupDir).catch(() => []);
+  const matchedFiles = fileNames
+    .filter((fileName) => fileName.startsWith(`${projectId}-`) && fileName.endsWith('-记忆文件.md'))
+    .map((fileName) => ({
+      fileName,
+      nodeName: deriveNodeNameFromFileName(fileName, projectId),
+    }))
+    .filter((item) => item.nodeName && item.nodeName !== excludeNodeName)
+    .filter((item) => nodeNames.length === 0 || nodeNames.includes(item.nodeName))
+    .sort((a, b) => b.fileName.localeCompare(a.fileName))
+    .slice(0, limit);
+
+  const files = await Promise.all(
+    matchedFiles.map(async (item) => {
+      const filePath = path.join(backupDir, item.fileName);
+      const stat = await fs.stat(filePath);
+      const content = await fs.readFile(filePath, 'utf8');
+      return {
+        fileName: item.fileName,
+        filePath,
+        nodeName: item.nodeName,
+        content,
+        updatedAt: stat.mtime.toISOString(),
+      };
+    })
+  );
+
+  return {
+    status: 'success',
+    files,
+  };
+}
+
 const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
-  const path = parsedUrl.pathname;
-  const method = req.method;
+  const pathname = parsedUrl.pathname;
+  const method = req.method || 'GET';
 
-  // 设置CORS头部
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept');
 
-  // 处理OPTIONS预检请求
   if (method === 'OPTIONS') {
     res.writeHead(200);
     res.end();
     return;
   }
 
-  // 健康检查端点
-  if (method === 'GET' && (path === '/health' || path === '/' || path === '/status')) {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
+  if (method === 'GET' && (pathname === '/' || pathname === '/health' || pathname === '/status')) {
+    sendJson(res, 200, {
       status: 'ok',
       service: 'Claude Code Bridge Server',
-      version: '1.0.0',
+      version: '2.0.0',
+      mode: 'local-cli',
       claude_binary_path: CLAUDE_BINARY,
-      mode: 'per-request-process',
-      timestamp: new Date().toISOString()
-    }));
-    return;
-  }
-
-  // API聊天端点
-  if (method === 'POST' && (
-    path === '/api/chat' ||
-    path === '/api/v1/chat' ||
-    path === '/chat' ||
-    path === '/api/message' ||
-    path === '/message'
-  )) {
-    let body = '';
-
-    req.on('data', chunk => {
-      body += chunk.toString();
-    });
-
-    req.on('end', async () => {
-      try {
-        const requestData = JSON.parse(body);
-        const message = requestData.message || requestData.content || '未知消息';
-
-        console.log(`[${new Date().toLocaleTimeString()}] API调用: ${path}`);
-        console.log(`请求消息: ${message}`);
-
-        // 发送给Claude Code并等待响应
-        const claudeResponse = await bridge.sendToClaude(message);
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          response: claudeResponse,
-          status: 'success',
-          metadata: {
-            endpoint: path,
-            timestamp: new Date().toISOString(),
-            requestId: Date.now().toString(),
-            source: 'real-claude-code'
-          }
-        }));
-
-        console.log(`响应: ${claudeResponse.substring(0, 100)}...`);
-
-      } catch (error) {
-        console.error('处理请求错误:', error);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          status: 'error',
-          error: '桥接服务器错误',
-          message: error.message
-        }));
-      }
+      timestamp: new Date().toISOString(),
     });
     return;
   }
 
-  // 404 处理
-  res.writeHead(404, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({
+  if (
+    method === 'POST' &&
+    (pathname === '/api/chat' ||
+      pathname === '/api/v1/chat' ||
+      pathname === '/chat' ||
+      pathname === '/api/message' ||
+      pathname === '/message')
+  ) {
+    try {
+      const requestData = await parseRequestBody(req);
+      const result = await handleChat(requestData);
+      sendJson(res, 200, result);
+    } catch (error) {
+      sendJson(res, 500, {
+        status: 'error',
+        error: '桥接服务器错误',
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+    return;
+  }
+
+  if (method === 'POST' && pathname === '/api/memory-file') {
+    try {
+      const requestData = await parseRequestBody(req);
+      const result = await handleMemoryFile(requestData);
+      sendJson(res, 200, result);
+    } catch (error) {
+      sendJson(res, 500, {
+        status: 'error',
+        error: '记忆文件生成失败',
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+    return;
+  }
+
+  if (method === 'POST' && pathname === '/api/memory-files/search') {
+    try {
+      const requestData = await parseRequestBody(req);
+      const result = await handleMemoryFileSearch(requestData);
+      sendJson(res, 200, result);
+    } catch (error) {
+      sendJson(res, 500, {
+        status: 'error',
+        error: '记忆文件查询失败',
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+    return;
+  }
+
+  sendJson(res, 404, {
     status: 'error',
     error: 'Not Found',
     availableEndpoints: [
       'GET /health - 健康检查',
-      'GET / - 根路径状态',
-      'POST /api/chat - 聊天API (桥接到真正的Claude Code)',
-      'POST /chat - 简化聊天API'
-    ]
-  }));
-});
-
-// 修正方法已经在上面定义了
-
-// 启动服务器
-server.listen(PORT, 'localhost', () => {
-  console.log('🚀 Claude Code HTTP桥接服务器已启动!');
-  console.log(`📡 监听地址: http://localhost:${PORT}`);
-  console.log('🔗 桥接到真正的Claude Code进程');
-  console.log('📋 可用端点:');
-  console.log('   GET  /health     - 健康检查');
-  console.log('   POST /api/chat   - 主聊天API (桥接到Claude Code)');
-  console.log('   POST /chat       - 简化聊天API (桥接到Claude Code)');
-  console.log('');
-  console.log('💬 现在插件将与真正的Claude Code通信!');
-  console.log('🔄 按 Ctrl+C 停止服务器');
-});
-
-// 优雅关闭
-process.on('SIGINT', () => {
-  console.log('\n🛑 正在关闭Claude Code桥接服务器...');
-  server.close(() => {
-    console.log('✅ 服务器已关闭');
-    process.exit(0);
+      'POST /api/chat - Claude 对话',
+      'POST /api/memory-file - 生成节点记忆文件',
+      'POST /api/memory-files/search - 查询节点记忆文件',
+    ],
   });
+});
+
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
+server.requestTimeout = 0;
+
+server.listen(PORT, HOST, () => {
+  console.log('🚀 Claude Code HTTP桥接服务器已启动');
+  console.log(`📡 监听地址: http://${HOST}:${PORT}`);
+  console.log('🤖 当前模式: local-cli');
+  console.log('📋 可用端点: GET /health, POST /api/chat, POST /api/memory-file, POST /api/memory-files/search');
+});
+
+process.on('SIGINT', () => {
+  console.log('\n🛑 正在关闭 Claude Code 桥接服务器...');
+  server.close(() => process.exit(0));
 });

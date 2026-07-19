@@ -646,9 +646,28 @@ export class WarshipExecution implements Execution {
           this.warship.setTargetUnit(undefined);
           this.warship.move(this.warship.tile());
           return;
-        case PathStatus.NEXT:
-          this.warship.move(result.node);
+        case PathStatus.NEXT: {
+          // The water pathfinder can return a diagonal step (dx !== 0 &&
+          // dy !== 0) at path endpoints, where the minimap upscaling leaves
+          // the source/destination one tile off on each axis. A warship move
+          // that changes both X and Y in a single UnitUpdate is illegal.
+          // Clamp the next node to a cardinal-only move: pick the axis with
+          // the larger offset, or fall back to X (then Y next tick).
+          const current = this.warship.tile();
+          const next = result.node;
+          const dx = this.mg.x(next) - this.mg.x(current);
+          const dy = this.mg.y(next) - this.mg.y(current);
+          if (dx !== 0 && dy !== 0) {
+            const cardinalNode =
+              Math.abs(dy) > Math.abs(dx)
+                ? this.mg.ref(this.mg.x(current), this.mg.y(current) + Math.sign(dy))
+                : this.mg.ref(this.mg.x(current) + Math.sign(dx), this.mg.y(current));
+            this.warship.move(cardinalNode);
+          } else {
+            this.warship.move(next);
+          }
           break;
+        }
         case PathStatus.NOT_FOUND: {
           console.log(`path not found to target`);
           break;

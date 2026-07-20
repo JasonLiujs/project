@@ -32,8 +32,11 @@ import { HocuspocusProvider } from "@hocuspocus/provider"
 
 import "./demo.css"
 
+// Only track local (null-origin) transactions so a user's undo/redo never
+// reverts a collaborator's remote edits, which arrive via the provider and
+// would otherwise be pushed onto the local undo stack.
 const createUndoManager = (ydoc, provider) => new Y.UndoManager(ydoc.getXmlFragment("default"), {
-  trackedOrigins: new Set([null, provider]),
+  trackedOrigins: new Set([null]),
 })
 
 // ─────────────────────────────────────────────

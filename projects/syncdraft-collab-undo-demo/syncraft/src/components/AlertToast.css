@@ -1,0 +1,153 @@
+/* Alert Toast Component Styles - Coral Theme */
+
+/* Alert Container */
+.alert-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Alert Toast Overlay */
+.alert-toast-overlay {
+  pointer-events: all;
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Alert Toast */
+.alert-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  min-width: 300px;
+  max-width: 500px;
+  backdrop-filter: blur(10px);
+  position: relative;
+}
+
+/* Alert Icon */
+.alert-toast-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Alert Message */
+.alert-toast-message {
+  flex: 1;
+  line-height: 1.4;
+}
+
+/* Alert Close Button */
+.alert-toast-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  line-height: 1;
+  transition: all 0.2s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+/* Success Alert */
+.alert-toast-success {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #dcfce7;
+}
+
+.alert-toast-success .alert-toast-close {
+  color: #16a34a;
+}
+
+.alert-toast-success .alert-toast-close:hover {
+  background: #dcfce7;
+}
+
+/* Error Alert */
+.alert-toast-error {
+  background: #fff5f5;
+  color: #dc3545;
+  border: 1px solid #ffebee;
+}
+
+.alert-toast-error .alert-toast-close {
+  color: #dc3545;
+}
+
+.alert-toast-error .alert-toast-close:hover {
+  background: #ffebee;
+}
+
+/* Info Alert */
+.alert-toast-info {
+  background: #f0f9ff;
+  color: #0284c7;
+  border: 1px solid #e0f2fe;
+}
+
+.alert-toast-info .alert-toast-close {
+  color: #0284c7;
+}
+
+.alert-toast-info .alert-toast-close:hover {
+  background: #e0f2fe;
+}
+
+/* Warning Alert */
+.alert-toast-warning {
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fef3c7;
+}
+
+.alert-toast-warning .alert-toast-close {
+  color: #d97706;
+}
+
+.alert-toast-warning .alert-toast-close:hover {
+  background: #fef3c7;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+  .alert-container {
+    left: 20px;
+    right: 20px;
+  }
+
+  .alert-toast {
+    min-width: unset;
+    width: 100%;
+  }
+}

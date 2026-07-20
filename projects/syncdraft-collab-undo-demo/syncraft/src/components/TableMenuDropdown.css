@@ -1,0 +1,46 @@
+/* TableMenuDropdown.css */
+
+.table-menu-wrapper {
+  position: relative;
+}
+
+.table-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 8px;
+  margin-top: 4px;
+  min-width: 160px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.table-menu-option {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+  color: #374151;
+}
+
+.table-menu-option:hover {
+  background-color: #f3f4f6;
+}
+
+.table-menu-option.delete-table {
+  color: #dc2626;
+}
+
+.table-menu-option.delete-table:hover {
+  background-color: #fef2f2;
+}

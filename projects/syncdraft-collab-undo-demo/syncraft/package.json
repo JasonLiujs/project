@@ -1,0 +1,84 @@
+{
+  "name": "syncraft",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "dependencies": {
+    "@floating-ui/react": "^0.27.16",
+    "@hocuspocus/provider": "^3.2.3",
+    "@mdi/js": "^7.4.47",
+    "@mdi/react": "^1.6.1",
+    "@supabase/supabase-js": "^2.56.1",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@tiptap/core": "^3.0.7",
+    "@tiptap/extension-collaboration": "^3.0.9",
+    "@tiptap/extension-collaboration-caret": "^3.0.9",
+    "@tiptap/extension-color": "^3.0.7",
+    "@tiptap/extension-document": "^3.0.7",
+    "@tiptap/extension-font-family": "^3.10.2",
+    "@tiptap/extension-heading": "^3.0.7",
+    "@tiptap/extension-highlight": "^3.0.7",
+    "@tiptap/extension-image": "^3.0.7",
+    "@tiptap/extension-list": "^3.0.7",
+    "@tiptap/extension-paragraph": "^3.0.7",
+    "@tiptap/extension-placeholder": "^3.0.9",
+    "@tiptap/extension-table": "^3.11.0",
+    "@tiptap/extension-text": "^3.0.7",
+    "@tiptap/extension-text-align": "^3.0.7",
+    "@tiptap/extension-text-style": "^3.10.2",
+    "@tiptap/pm": "^3.10.2",
+    "@tiptap/react": "^3.10.2",
+    "@tiptap/starter-kit": "^3.0.7",
+    "@tiptap/y-tiptap": "^3.0.0",
+    "file-saver": "^2.0.5",
+    "html-docx-js": "^0.3.1",
+    "html-to-docx": "^1.8.0",
+    "html2canvas": "^1.4.1",
+    "html2pdf.js": "^0.12.1",
+    "jspdf": "^3.0.3",
+    "lucide-react": "^0.525.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-hotkeys-hook": "^5.2.1",
+    "react-icons": "^5.5.0",
+    "react-router-dom": "^7.8.2",
+    "react-scripts": "5.0.1",
+    "web-vitals": "^2.1.4",
+    "y-indexeddb": "^9.0.12",
+    "y-protocols": "^1.0.6",
+    "y-websocket": "^3.0.0",
+    "yjs": "^13.6.27"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "sass": "^1.93.3",
+    "sass-embedded": "^1.93.3",
+    "tailwindcss": "^4.1.11"
+  }
+}

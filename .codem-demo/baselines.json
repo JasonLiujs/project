@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "repository": "JasonLiujs/project",
+  "baselineBranch": "demo/enterprise-buggy",
+  "projects": {
+    "openfront": {
+      "path": "projects/openfront-warship-agent-demo",
+      "bug": "warship-diagonal-chase",
+      "validation": "npm run demo:test"
+    },
+    "syncdraft": {
+      "path": "projects/syncdraft-collab-undo-demo",
+      "bug": "collaborative-undo-scope",
+      "validation": "CI=true npm test -- --watchAll=false"
+    }
+  }
+}

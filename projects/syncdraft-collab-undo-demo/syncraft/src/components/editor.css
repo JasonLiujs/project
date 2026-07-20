@@ -1,0 +1,600 @@
+/* --- Google Docs–Inspired Editor Layout --- */
+
+/* Toolbar Container */
+.control-group {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background-color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0.5rem 1rem;
+}
+
+.my-code-block {
+  background-color: #F7F7F7 !important;
+  border-radius: 6px !important;
+  padding: 1rem !important;
+  border: 1px solid #ddd;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* Toolbar Button Group */
+.group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-right: 1px solid #e5e7eb;
+  padding-right: 0.5rem;
+}
+
+.group:last-child {
+  border-right: none;
+}
+
+/* Toolbar Buttons */
+.toolbar button {
+  background: #fff;
+  border: none;
+  padding: 0.45rem;
+  font-size: 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #444;
+  transition: all 0.15s ease;
+}
+
+.toolbar button:hover {
+  background: #e8eaed;
+  color: #202124;
+}
+
+.toolbar button.active {
+  background-color: #1a73e8;
+  color: #fff;
+}
+
+/* --- Editor Content Area --- */
+.editor-div {
+  display: flex;
+  justify-content: center;
+  margin: 2rem auto;
+  padding: 2rem;
+}
+
+/* Ensure modals are not affected by editor styles - Global override */
+[class*="-modal-overlay"],
+[class*="modal-overlay"] {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1000 !important;
+}
+
+[class*="-modal"]:not([class*="-overlay"]):not([class*="-message"]) {
+  position: relative !important;
+  margin: 0 auto !important;
+  transform: translateY(0) translateX(0) scale(1) !important;
+  opacity: 1 !important;
+}
+
+/* Paper-like page styling */
+.ProseMirror {
+  background-color: #fff;
+  width: 8.5in;
+  min-height: 11in;
+  padding-top: 1in;
+  padding-left: 1in;
+  padding-bottom: 1in;
+  padding-right: 1in;
+  box-shadow: 0 2px 8px rgba(60, 64, 67, 0.15);
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  font-size: 1rem;
+  color: #202124;
+  line-height: 1.6;
+}
+
+/* Focus effect for editor */
+.ProseMirror:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #959595;
+}
+
+.tiptap img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.tiptap .ProseMirror-selectednode {
+  outline: 3px solid #3b82f6;
+}
+
+/* Ensure resize handles are visible */
+.tiptap [data-node-view-wrapper] {
+  position: relative;
+}
+
+/* --- Text Formatting --- */
+.tiptap h1, .ProseMirror h1 {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.tiptap h2, .ProseMirror h2 {
+  font-size: 1.6rem;
+  font-weight: bold;
+  margin-bottom: 0.75rem;
+}
+
+.tiptap h3, .ProseMirror h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.tiptap p, .ProseMirror p {
+  margin-bottom: 1rem;
+}
+
+/* Lists */
+.tiptap ul, .ProseMirror ul,
+.tiptap ol, .ProseMirror ol {
+  margin: 0.75rem 0 0.75rem 2rem;
+}
+
+/* Images */
+.tiptap img, .ProseMirror img {
+  display: block;
+  margin: 1rem auto;
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+/* Collaboration Carets (Google Docs-style) */
+.collaboration-carets__caret {
+  border-left: 2px solid #1a73e8;
+  margin-left: -1px;
+  position: relative;
+}
+
+.collaboration-carets__label {
+  position: absolute;
+  top: -1.4em;
+  left: 0;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* Icon Button Styling */
+.icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  color: #374151;
+  font-size: 1.25rem;
+}
+
+.icon-button:hover {
+  background: #f3f4f6;
+  color: #ff6b6b;
+}
+
+.icon-button:active {
+  transform: scale(0.95);
+}
+
+/* Logout Button Special Styling */
+.logout-button:hover {
+  background: #fee;
+  color: #dc2626;
+}
+
+/* Download Menu Wrapper */
+.download-menu-wrapper {
+  position: relative;
+}
+
+/* Download Dropdown Menu */
+.download-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  padding: 0.5rem;
+  min-width: 140px;
+  z-index: 1000;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Download Options */
+.download-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #374151;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.download-option:hover {
+  background: #f9fafb;
+  transform: translateX(3px);
+}
+
+.download-option:active {
+  transform: translateX(1px);
+}
+
+/* Format Icons */
+.format-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.format-icon.pdf {
+  color: #dc2626;
+}
+
+.format-icon.docx {
+  color: #2563eb;
+}
+
+.download-option:hover .format-icon.pdf {
+  color: #ef4444;
+}
+
+.download-option:hover .format-icon.docx {
+  color: #3b82f6;
+}
+
+/* Collaborator Avatar Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ============================================
+   MOBILE RESPONSIVE STYLES
+   ============================================ */
+
+/* Hamburger Menu Button */
+.hamburger-button {
+  display: none;
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  color: #374151;
+  transition: all 0.2s ease;
+}
+
+.hamburger-button:hover {
+  background: #f3f4f6;
+  border-radius: 6px;
+}
+
+/* Mobile Header */
+.mobile-header {
+  display: none;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.mobile-collaborators {
+  display: flex;
+  align-items: center;
+}
+
+/* Mobile Menu Overlay */
+.mobile-menu-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.mobile-menu-overlay.open {
+  display: block;
+  opacity: 1;
+}
+
+/* Mobile Menu Sidebar */
+.mobile-menu {
+  display: none;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 80%;
+  max-width: 320px;
+  background: white;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  overflow-y: auto;
+  transform: translateX(100%);
+  transition: transform 0.3s ease-out;
+}
+
+.mobile-menu.open {
+  display: block;
+  transform: translateX(0);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Mobile Menu Header */
+.mobile-menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+/* Mobile Menu Content */
+.mobile-menu-content {
+  padding: 1rem;
+}
+
+.mobile-menu-section {
+  margin-bottom: 1.5rem;
+}
+
+.mobile-menu-section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.5px;
+}
+
+.mobile-menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mobile-menu-button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #374151;
+  transition: all 0.2s ease;
+  text-align: left;
+  font-weight: 500;
+}
+
+.mobile-menu-button:hover {
+  background: #e5e7eb;
+  transform: translateX(3px);
+}
+
+.mobile-menu-button:active {
+  transform: translateX(1px);
+}
+
+.mobile-menu-button svg {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.mobile-menu-button.logout-mobile {
+  background: #fee2e2;
+  color: #dc2626;
+  margin-top: 0.5rem;
+}
+
+.mobile-menu-button.logout-mobile:hover {
+  background: #fecaca;
+}
+
+/* Hide elements on mobile */
+.mobile-only {
+  display: none;
+}
+
+/* Media Query for Mobile Devices */
+@media (max-width: 768px) {
+  /* Show hamburger menu */
+  .hamburger-button {
+    display: block;
+  }
+
+  .mobile-only {
+    display: flex;
+  }
+
+  .mobile-header {
+    display: flex;
+  }
+
+  /* Hide desktop toolbar */
+  .desktop-toolbar {
+    display: none !important;
+  }
+
+  /* Adjust editor for mobile */
+  .ProseMirror {
+    width: 95%;
+    padding: 0.5in;
+    min-height: auto;
+  }
+
+  .editor-div {
+    padding: 1rem;
+    margin: 1rem auto;
+  }
+
+  /* Adjust control group padding */
+  .control-group {
+    padding: 0.75rem 1rem;
+  }
+}
+
+/* Tablet adjustments */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .ProseMirror {
+    width: 90%;
+    padding: 0.75in;
+  }
+
+  .toolbar {
+    gap: 0.5rem;
+  }
+
+  .group {
+    gap: 0.3rem;
+  }
+}
+
+/* Desktop large screens */
+@media (min-width: 1441px) {
+  .control-group {
+    padding: 0.5rem 2rem;
+  }
+}
+/* Table Resize Handle Styles - REQUIRED for resizable columns */
+.ProseMirror {
+  &.resize-cursor {
+    cursor: ew-resize;
+    cursor: col-resize;
+  }
+}
+
+.column-resize-handle {
+  background-color: #adf;
+  bottom: -2px;
+  pointer-events: none;
+  position: absolute;
+  right: -2px;
+  top: 0;
+  width: 4px;
+  z-index: 20;
+}
+
+/* Table Styles */
+table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 1rem 0;
+  overflow: hidden;
+}
+
+td, th {
+  min-width: 1em;
+  border: 2px solid #ced4da;
+  padding: 0.5rem;
+  vertical-align: top;
+  box-sizing: border-box;
+  position: relative;
+}
+
+
+
+th {
+  font-weight: bold;
+  text-align: left;
+  background-color: #f1f3f5;
+}
+
+.selectedCell:after {
+  z-index: 2;
+  position: absolute;
+  content: "";
+  left: 0; 
+  right: 0; 
+  top: 0; 
+  bottom: 0;
+  background: rgba(200, 200, 255, 0.4);
+  pointer-events: none;
+}
+
+/* Make sure colgroup is styled properly */
+colgroup {
+  display: table-column-group;
+}
+
+col {
+  display: table-column;
+}

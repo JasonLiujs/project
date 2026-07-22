@@ -32,8 +32,20 @@ import { HocuspocusProvider } from "@hocuspocus/provider"
 
 import "./demo.css"
 
+/**
+ * Create a per-user UndoManager that only tracks LOCAL edits.
+ *
+ * Bug: the previous `trackedOrigins: new Set([null, provider])` made every
+ * remote update undoable locally.  HocuspocusProvider applies incoming wire
+ * updates via Y.applyUpdate(), whose default transaction origin is `null`.
+ * Because `null` was in trackedOrigins, A's undo would revert B's remote
+ * edits — B's content vanished.
+ *
+ * Fix: track ONLY the provider identity so remote updates (origin=null)
+ * never enter the local undo stack.
+ */
 const createUndoManager = (ydoc, provider) => new Y.UndoManager(ydoc.getXmlFragment("default"), {
-  trackedOrigins: new Set([null, provider]),
+  trackedOrigins: new Set([provider]),
 })
 
 // ─────────────────────────────────────────────

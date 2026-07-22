@@ -58,6 +58,11 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
+  "jest": {
+    "transformIgnorePatterns": [
+      "node_modules/(?!(yjs|lib0)/)"
+    ]
+  },
   "eslintConfig": {
     "extends": [
       "react-app",

@@ -330,6 +330,9 @@ const Tiptap = ({ docId, user }) => {
       Underline,
       Collaboration.configure({
         document: ydoc,
+      yUndoOptions: {
+          trackedOrigins: [provider],
+        },
       }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],

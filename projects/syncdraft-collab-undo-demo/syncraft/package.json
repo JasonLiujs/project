@@ -76,6 +76,11 @@
       "last 1 safari version"
     ]
   },
+  "jest": {
+    "transformIgnorePatterns": [
+      "node_modules/(?!(@tiptap/y-tiptap|@tiptap/extension-collaboration|yjs|lib0|y-protocols)/)"
+    ]
+  },
   "devDependencies": {
     "sass": "^1.93.3",
     "sass-embedded": "^1.93.3",

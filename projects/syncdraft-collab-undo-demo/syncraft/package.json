@@ -78,7 +78,7 @@
   },
   "jest": {
     "transformIgnorePatterns": [
-      "node_modules/(?!(@tiptap/y-tiptap|@tiptap/extension-collaboration|yjs|lib0|y-protocols)/)"
+      "node_modules/(?!(@tiptap/y-tiptap|@tiptap/extension-collaboration|@tiptap/core|@tiptap/pm|@tiptap/react|@tiptap/extension-document|@tiptap/extension-paragraph|@tiptap/extension-text|@hocuspocus/provider|@hocuspocus/common|yjs|lib0|y-protocols|y-protocols/awareness)/)"
     ]
   },
   "devDependencies": {

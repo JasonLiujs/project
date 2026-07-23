@@ -32,10 +32,6 @@ import { HocuspocusProvider } from "@hocuspocus/provider"
 
 import "./demo.css"
 
-const createUndoManager = (ydoc, provider) => new Y.UndoManager(ydoc.getXmlFragment("default"), {
-  trackedOrigins: new Set([null, provider]),
-})
-
 // ─────────────────────────────────────────────
 // DEMO CONSTANTS
 // ─────────────────────────────────────────────
@@ -88,7 +84,6 @@ const DEMO_CONTENT = `
 const DemoEditor = () => {
   const ydocRef = useRef(new Y.Doc())
   const providerRef = useRef(null)
-  const undoManagerRef = useRef(null)
   const navigate = useNavigate()
 
   // ─────────────────────────────────────────────
@@ -103,9 +98,7 @@ const DemoEditor = () => {
       name: DEMO_DOC_ID,
       document: ydocRef.current,
     })
-
-    undoManagerRef.current = createUndoManager(ydocRef.current, providerRef.current)
-  }
+}
 
   const extensions = useMemo(() => [
     Document,
@@ -143,9 +136,8 @@ const DemoEditor = () => {
   useEffect(() => {
     if (editor) {
       window.__syncraftEditor = editor
-      window.__syncraftUndoManager = undoManagerRef.current
-    }
-  }, [editor])
+      }
+    }, [editor])
 
   // ─────────────────────────────────────────────
   // Handlers
@@ -187,10 +179,10 @@ return (
         </div>
 
         <div className="demo-group">
-          <button onClick={() => undoManagerRef.current?.undo()}>
+          <button onClick={() => editor.chain().focus().undo().run()}>
             <MdUndo />
           </button>
-          <button onClick={() => undoManagerRef.current?.redo()}>
+          <button onClick={() => editor.chain().focus().redo().run()}>
             <MdRedo />
           </button>
         </div>

@@ -278,31 +278,31 @@ export const CollaborationUndoIsolation = Extension.create({
       /**
        * 安全 redo：直接调用 Yjs UndoManager.redo()。
        * redo 恢复的是本地刚 undo 掉的内容，是正确行为，不需要远端恢复。
-      */
-        safeRedo:
+       */
+      safeRedo:
         () =>
-          ({ tr, editor }) => {
-tr.setMeta("preventDispatch", true)
+        ({ tr, editor }) => {
+          tr.setMeta("preventDispatch", true)
 
-            const collaborationExt = editor.extensionManager.extensions.find(
-          (ext) => ext.name === "collaboration"
+          const collaborationExt = editor.extensionManager.extensions.find(
+            (ext) => ext.name === "collaboration"
           )
-            if (!collaborationExt || !collaborationExt.options.document) {
+          if (!collaborationExt || !collaborationExt.options.document) {
             tr.setMeta("preventDispatch", false)
-          return editor.commands.redo()
-}
+            return editor.commands.redo()
+          }
 
           const umState = yUndoPluginKey.getState(editor.view.state)
-const um = umState ? umState.undoManager : null
+          const um = umState ? umState.undoManager : null
           if (!um) {
-          tr.setMeta("preventDispatch", false)
-          return editor.commands.redo()
-            }
+            tr.setMeta("preventDispatch", false)
+            return editor.commands.redo()
+          }
 
           um.redo()
 
           return true
-},
+        },
     }
   },
 

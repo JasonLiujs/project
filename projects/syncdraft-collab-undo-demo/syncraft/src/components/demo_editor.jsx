@@ -181,10 +181,10 @@ return (
         </div>
 
         <div className="demo-group">
-          <button onClick={() => editor.chain().focus().undo().run()}>
+          <button onClick={() => editor.chain().focus().safeUndo().run()}>
             <MdUndo />
           </button>
-          <button onClick={() => editor.chain().focus().redo().run()}>
+          <button onClick={() => editor.chain().focus().safeRedo().run()}>
             <MdRedo />
           </button>
         </div>

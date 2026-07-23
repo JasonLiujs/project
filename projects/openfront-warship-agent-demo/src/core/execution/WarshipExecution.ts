@@ -646,9 +646,30 @@ export class WarshipExecution implements Execution {
           this.warship.setTargetUnit(undefined);
           this.warship.move(this.warship.tile());
           return;
-        case PathStatus.NEXT:
-          this.warship.move(result.node);
+        case PathStatus.NEXT: {
+          const current = this.warship.tile();
+          const next = result.node;
+          const dx = this.mg.x(next) - this.mg.x(current);
+          const dy = this.mg.y(next) - this.mg.y(current);
+          if (dx !== 0 && dy !== 0) {
+            // Pathfinder returned a diagonal step; coerce to a cardinal move
+            // to prevent diagonal jitter during trade-ship chase.
+            const cardinalNode =
+              Math.abs(dy) > Math.abs(dx)
+                ? this.mg.ref(
+                    this.mg.x(current),
+                    this.mg.y(current) + Math.sign(dy),
+                  )
+                : this.mg.ref(
+                    this.mg.x(current) + Math.sign(dx),
+                    this.mg.y(current),
+                  );
+            this.warship.move(cardinalNode);
+          } else {
+            this.warship.move(next);
+          }
           break;
+        }
         case PathStatus.NOT_FOUND: {
           console.log(`path not found to target`);
           break;

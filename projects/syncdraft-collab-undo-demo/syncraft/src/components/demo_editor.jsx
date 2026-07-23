@@ -15,6 +15,7 @@ import { TableKit } from "@tiptap/extension-table"
 import Collaboration from "@tiptap/extension-collaboration"
 import CollaborationCaret from "@tiptap/extension-collaboration-caret"
 import { Placeholder } from "@tiptap/extensions"
+import { CollaborationUndoIsolation } from "../extensions/collaboration-undo-isolation"
 
 import {
   MdUndo, MdRedo, MdImage,
@@ -126,6 +127,7 @@ const DemoEditor = () => {
     Placeholder.configure({
       placeholder: "Write something…",
     }),
+  CollaborationUndoIsolation,
   ], [])
 
   const editor = useEditor({

@@ -7,7 +7,7 @@ import {
   UnitParams,
   UnitType,
 } from "../game/Game";
-import { TileRef } from "../game/GameMap";
+import { TileRef, GameMap } from "../game/GameMap";
 import { WaterPathFinder } from "../pathfinding/PathFinder";
 import { PathStatus } from "../pathfinding/types";
 import { PseudoRandom } from "../PseudoRandom";
@@ -647,7 +647,7 @@ export class WarshipExecution implements Execution {
           this.warship.move(this.warship.tile());
           return;
         case PathStatus.NEXT:
-          this.warship.move(result.node);
+          this.moveCardinal(result.node);
           break;
         case PathStatus.NOT_FOUND: {
           console.log(`path not found to target`);
@@ -655,6 +655,58 @@ export class WarshipExecution implements Execution {
         }
       }
     }
+  }
+
+  /**
+   * Move the warship one cardinal (axis-aligned) tile toward `toward`.
+   *
+   * The water pathfinder returns paths that can step diagonally (e.g.
+   * straight-line LOS traces produced by the smoother), but a warship closing
+   * on a nearby trade ship must only emit axis-aligned unit updates. When the
+   * pathfinder's next node is a diagonal step, decompose it into two cardinal
+   * moves (one per axis), taking whichever intermediate water tile is valid
+   * first. Both axes are consumed in the same tick, so the chase closes at the
+   * same speed without ever producing an `dx !== 0 && dy !== 0` unit update.
+   */
+  private moveCardinal(toward: TileRef): void {
+    const mg: GameMap = this.mg;
+    const from = this.warship.tile();
+    const fromX = mg.x(from);
+    const fromY = mg.y(from);
+    const dx = mg.x(toward) - fromX;
+    const dy = mg.y(toward) - fromY;
+
+    if (dx === 0 && dy === 0) {
+      this.warship.move(from);
+      return;
+    }
+
+    if (dx !== 0 && dy !== 0) {
+      const sx = Math.sign(dx);
+      const sy = Math.sign(dy);
+      const xStep = mg.ref(fromX + sx, fromY);
+      const yStep = mg.ref(fromX, fromY + sy);
+      const xStepValid = mg.isWater(xStep);
+      const yStepValid = mg.isWater(yStep);
+
+      if (xStepValid) {
+        this.warship.move(xStep);
+        this.warship.move(mg.ref(fromX + sx, fromY + sy));
+        return;
+      }
+      if (yStepValid) {
+        this.warship.move(yStep);
+        this.warship.move(toward);
+        return;
+      }
+
+      // Neither intermediate cardinal tile is water: fall back to the
+      // pathfinder's node directly so the chase isn't blocked.
+      this.warship.move(toward);
+      return;
+    }
+
+    this.warship.move(toward);
   }
 
   private patrol() {

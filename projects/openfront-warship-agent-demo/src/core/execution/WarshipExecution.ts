@@ -646,15 +646,76 @@ export class WarshipExecution implements Execution {
           this.warship.setTargetUnit(undefined);
           this.warship.move(this.warship.tile());
           return;
-        case PathStatus.NEXT:
-          this.warship.move(result.node);
+        case PathStatus.NEXT: {
+          // Warships may only move one tile orthogonally (cardinal) per step.
+          // The A* water pathfinder can return a `node` that is not an
+          // immediate orthogonal neighbour (e.g. a diagonal or multi-tile
+          // step), which previously caused illegal diagonal jumps and, when
+          // the second loop iteration detected the stale position, jitter.
+          // Project the returned node onto a single legal cardinal step toward
+          // the target so the warship always advances orthogonally.
+          const next = this.cardinalStepToward(result.node);
+          this.warship.move(next);
           break;
+        }
         case PathStatus.NOT_FOUND: {
           console.log(`path not found to target`);
           break;
         }
       }
     }
+  }
+
+  /**
+   * Returns a single cardinal (orthogonal) neighbour of the warship's current
+   * tile that lies on the shortest orthogonal path toward `target`. If
+   * `target` is already a valid cardinal neighbour it is returned directly.
+   * Falls back to the current tile (no movement) when no legal cardinal step
+   * exists, preventing illegal diagonal movement.
+   */
+  private cardinalStepToward(target: TileRef): TileRef {
+    const current = this.warship.tile();
+    if (this.isCardinalNeighbor(current, target)) {
+      return target;
+    }
+    const cx = this.mg.x(current);
+    const cy = this.mg.y(current);
+    const tx = this.mg.x(target);
+    const ty = this.mg.y(target);
+    const dx = tx - cx;
+    const dy = ty - cy;
+    // Prefer the axis with the larger delta; ties favour x then y.
+    const candidates: TileRef[] = [];
+    if (dx !== 0) {
+      candidates.push(this.mg.ref(cx + Math.sign(dx), cy));
+    }
+    if (dy !== 0) {
+      candidates.push(this.mg.ref(cx, cy + Math.sign(dy)));
+    }
+    for (const candidate of candidates) {
+      if (
+        this.mg.isValidRef(candidate) &&
+        !this.mg.isLand(candidate) &&
+        this.isCardinalNeighbor(current, candidate)
+      ) {
+        return candidate;
+      }
+    }
+    // No legal cardinal step toward target — stay put this tick to avoid an
+    // illegal diagonal jump. The pathfinder will be recomputed next tick.
+    return current;
+  }
+
+  private isCardinalNeighbor(a: TileRef, b: TileRef): boolean {
+    if (a === b) return false;
+    const ax = this.mg.x(a);
+    const ay = this.mg.y(a);
+    const bx = this.mg.x(b);
+    const by = this.mg.y(b);
+    return (
+      (ax === bx && Math.abs(ay - by) === 1) ||
+      (ay === by && Math.abs(ax - bx) === 1)
+    );
   }
 
   private patrol() {

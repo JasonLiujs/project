@@ -647,7 +647,13 @@ export class WarshipExecution implements Execution {
           this.warship.move(this.warship.tile());
           return;
         case PathStatus.NEXT:
-          this.warship.move(result.node);
+          // The water pathfinder can return a next step that differs from the
+          // warship's current tile in both axes (a diagonal hop). Ships move a
+          // single tile per tick, so a diagonal move is illegal and causes the
+          // visual "diagonal jump" / jitter bug. Decompose any diagonal step
+          // into a single cardinal (axis-aligned) step toward the target,
+          // preserving deterministic progress without changing capture range.
+          this.warship.move(this.cardinalStepToward(result.node));
           break;
         case PathStatus.NOT_FOUND: {
           console.log(`path not found to target`);
@@ -655,6 +661,39 @@ export class WarshipExecution implements Execution {
         }
       }
     }
+  }
+
+  /**
+   * Convert a (possibly diagonal) next-step tile into a single cardinal
+   * (axis-aligned) neighbor of the warship's current tile that still makes
+   * progress toward `nextTile`.
+   *
+   * When `nextTile` differs from the current tile in only one axis, it is
+   * returned unchanged (already a legal cardinal move). When it differs in
+   * both axes, exactly one axis is advanced by one tile. The axis with the
+   * larger remaining delta is chosen so the warship closes on the target
+   * deterministically; ties favor the X axis. This never enlarges the capture
+   * distance and introduces no randomness or time-dependent state.
+   */
+  private cardinalStepToward(nextTile: TileRef): TileRef {
+    const current = this.warship.tile();
+    const dx = this.mg.x(nextTile) - this.mg.x(current);
+    const dy = this.mg.y(nextTile) - this.mg.y(current);
+    if (dx === 0 || dy === 0) {
+      // Already a single-axis move.
+      return nextTile;
+    }
+    // Diagonal step: advance one tile along a single axis.
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      return this.mg.ref(
+        this.mg.x(current) + (dx > 0 ? 1 : -1),
+        this.mg.y(current),
+      );
+    }
+    return this.mg.ref(
+      this.mg.x(current),
+      this.mg.y(current) + (dy > 0 ? 1 : -1),
+    );
   }
 
   private patrol() {

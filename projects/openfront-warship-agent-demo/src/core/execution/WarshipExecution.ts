@@ -646,15 +646,66 @@ export class WarshipExecution implements Execution {
           this.warship.setTargetUnit(undefined);
           this.warship.move(this.warship.tile());
           return;
-        case PathStatus.NEXT:
-          this.warship.move(result.node);
+        case PathStatus.NEXT: {
+          // A* may return a node that is not an orthogonally-adjacent tile
+          // (e.g. a diagonal step or a multi-tile jump). Warships may only
+          // move one tile along a cardinal axis per tick, so project the
+          // pathfinder node onto a single legal cardinal step; if no legal
+          // step exists, hold position to avoid an illegal diagonal jump.
+          const step = this.cardinalStepToward(result.node);
+          if (step !== this.warship.tile()) {
+            this.warship.move(step);
+          }
           break;
+        }
         case PathStatus.NOT_FOUND: {
           console.log(`path not found to target`);
           break;
         }
       }
     }
+  }
+
+  private cardinalStepToward(target: TileRef): TileRef {
+    const current = this.warship.tile();
+    const cx = this.mg.x(current);
+    const cy = this.mg.y(current);
+    const tx = this.mg.x(target);
+    const ty = this.mg.y(target);
+    const dx = tx - cx;
+    const dy = ty - cy;
+    // Prefer the axis with the larger delta; ties favour x then y.
+    const candidates: TileRef[] = [];
+    if (dx !== 0) {
+      candidates.push(this.mg.ref(cx + Math.sign(dx), cy));
+    }
+    if (dy !== 0) {
+      candidates.push(this.mg.ref(cx, cy + Math.sign(dy)));
+    }
+    for (const candidate of candidates) {
+      if (
+        this.mg.isValidRef(candidate) &&
+        !this.mg.isLand(candidate) &&
+        this.isCardinalNeighbor(current, candidate)
+      ) {
+        return candidate;
+      }
+    }
+    // No legal cardinal step toward target — stay put this tick to avoid an
+    // illegal diagonal jump. The pathfinder will be recomputed next tick.
+    return current;
+  }
+
+  private isCardinalNeighbor(a: TileRef, b: TileRef): boolean {
+    if (a === b) return false;
+    const ax = this.mg.x(a);
+    const ay = this.mg.y(a);
+    const bx = this.mg.x(b);
+    const by = this.mg.y(b);
+    return (
+      (ax === bx && Math.abs(ay - by) === 1) ||
+      (ay === by && Math.abs(ax - bx) === 1)
+    );
   }
 
   private patrol() {

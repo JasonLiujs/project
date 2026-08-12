@@ -634,27 +634,82 @@ export class WarshipExecution implements Execution {
   private huntDownTradeShip() {
     this.warship.updateWarshipState({ isInCombat: true });
     for (let i = 0; i < 2; i++) {
-      // target is trade ship so capture it.
-      const result = this.pathfinder.next(
-        this.warship.tile(),
-        this.warship.targetUnit()!.tile(),
-        5,
-      );
+      const target = this.warship.targetUnit()!;
+      const targetTile = target.tile();
+      const warshipTile = this.warship.tile();
+
+      // If adjacent (Manhattan distance ≤ 1), capture immediately.
+      if (this.mg.manhattanDist(warshipTile, targetTile) <= 1) {
+        this.warship.owner().captureUnit(target);
+        this.warship.setTargetUnit(undefined);
+        return;
+      }
+
+      // Ask the pathfinder for the next step toward the trade ship.
+      // We don't pass a dist threshold here so the pathfinder won't
+      // short-circuit with COMPLETE while still several tiles away —
+      // that early-exit was a primary cause of the capture jitter.
+      const result = this.pathfinder.next(warshipTile, targetTile);
       switch (result.status) {
         case PathStatus.COMPLETE:
-          this.warship.owner().captureUnit(this.warship.targetUnit()!);
-          this.warship.setTargetUnit(undefined);
-          this.warship.move(this.warship.tile());
-          return;
-        case PathStatus.NEXT:
-          this.warship.move(result.node);
+          // Pathfinder considers us "there". If we're adjacent, capture;
+          // otherwise take one more cardinal step toward the target.
+          if (this.mg.manhattanDist(warshipTile, targetTile) <= 1) {
+            this.warship.owner().captureUnit(target);
+            this.warship.setTargetUnit(undefined);
+            return;
+          }
+          this.moveCardinalToward(targetTile);
           break;
-        case PathStatus.NOT_FOUND: {
+        case PathStatus.NEXT:
+          this.moveCardinalToward(result.node);
+          break;
+        case PathStatus.NOT_FOUND:
           console.log(`path not found to target`);
           break;
-        }
       }
     }
+  }
+
+  /**
+   * Move the warship exactly one cardinal (non-diagonal) tile toward
+   * `destination`. The MiniMap pathfinder can return diagonal nodes after
+   * upscaling; warships must only move orthogonally. This method decomposes
+   * any step — diagonal or multi-tile — into a single orthogonal sub-step,
+   * preferring the axis with the larger delta.
+   */
+  private moveCardinalToward(destination: TileRef): void {
+    const cur = this.warship.tile();
+    const dx = this.mg.x(destination) - this.mg.x(cur);
+    const dy = this.mg.y(destination) - this.mg.y(cur);
+    if (dx === 0 && dy === 0) return;
+
+    // Prefer the axis with the larger remaining delta to avoid zig-zag.
+    if (Math.abs(dx) >= Math.abs(dy) && dx !== 0) {
+      const step = this.mg.ref(this.mg.x(cur) + Math.sign(dx), this.mg.y(cur));
+      if (this.mg.isWater(step)) {
+        this.warship.move(step);
+        return;
+      }
+    }
+    if (dy !== 0) {
+      const step = this.mg.ref(this.mg.x(cur), this.mg.y(cur) + Math.sign(dy));
+      if (this.mg.isWater(step)) {
+        this.warship.move(step);
+        return;
+      }
+    }
+    // Primary axis blocked — try the other axis.
+    if (dx !== 0 && Math.abs(dx) < Math.abs(dy)) {
+      const step = this.mg.ref(this.mg.x(cur) + Math.sign(dx), this.mg.y(cur));
+      if (this.mg.isWater(step)) {
+        this.warship.move(step);
+        return;
+      }
+    }
+    // All cardinal neighbours blocked — fall back to the raw pathfinder node
+    // so the warship doesn't get permanently stuck.
+    this.warship.move(destination);
   }
 
   private patrol() {
